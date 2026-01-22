@@ -31,11 +31,14 @@ export interface SchedulerState {
   users: User[];
   availabilities: Availability[];
   meetings: Meeting[];
+  isLoading: boolean;
+  error: string | null;
 }
 
 export interface SchedulerActions {
+  fetchData: () => Promise<void>;
   setCurrentUser: (userId: string) => void;
-  setAvailability: (userId: string, slots: TimeSlot[]) => void;
-  addMeeting: (meeting: Omit<Meeting, 'id'>) => void;
-  cancelMeeting: (meetingId: string) => void;
+  setAvailability: (userId: string, slots: TimeSlot[]) => Promise<void>;
+  addMeeting: (meeting: Omit<Meeting, 'id'>) => Promise<void>;
+  cancelMeeting: (meetingId: string) => Promise<void>;
 }

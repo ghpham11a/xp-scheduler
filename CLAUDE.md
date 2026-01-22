@@ -8,7 +8,7 @@ XP Scheduler is a meeting scheduling application built with Next.js 16. Users ca
 
 ## Commands
 
-All commands run from `nextjs-client/`:
+### Next.js Client (from `nextjs-client/`)
 
 ```bash
 npm run dev      # Start development server (localhost:3000)
@@ -17,14 +17,24 @@ npm run start    # Start production server
 npm run lint     # Run ESLint
 ```
 
+### FastAPI Server (from `server/`)
+
+```bash
+# Activate virtual environment first
+.\env\Scripts\activate  # Windows
+source env/bin/activate  # Mac/Linux
+
+# Run server
+uvicorn app.main:app --host 0.0.0.0 --port 6969 --reload
+```
+
+The client expects the API at `http://localhost:6969` (configurable via `NEXT_PUBLIC_API_URL`).
+
 ## Architecture
 
 ### Tech Stack
-- Next.js 16 with App Router
-- React 19
-- TypeScript (strict mode)
-- Zustand for state management (persisted to localStorage)
-- Tailwind CSS v4
+- **Frontend**: Next.js 16, React 19, TypeScript, Zustand, Tailwind CSS v4
+- **Backend**: FastAPI (Python), Pydantic, JSON file storage
 
 ### Project Structure
 
@@ -37,25 +47,40 @@ nextjs-client/
 │   ├── availability/ # AvailabilityPicker, AvailabilityView
 │   ├── calendar/     # CalendarView (weekly calendar display)
 │   ├── layout/       # Header
-│   ├── providers/    # StoreProvider (hydration handling)
+│   ├── providers/    # StoreProvider (hydration + API fetch)
 │   └── scheduling/   # MeetingForm, MeetingList, ScheduleMeetingView, TimeSlotPicker, UserAvailabilityGrid
 ├── lib/
-│   ├── constants.ts  # Mock users, day names, hour arrays
-│   ├── store.ts      # Zustand store with persist middleware
+│   ├── api.ts        # API client for FastAPI backend
+│   ├── constants.ts  # Day names, hour arrays
+│   ├── store.ts      # Zustand store (syncs with API)
 │   └── utils.ts      # Time formatting, slot merging, conflict detection
 └── types/
     └── index.ts      # TypeScript interfaces (User, TimeSlot, Meeting, etc.)
+
+server/
+├── app/
+│   ├── main.py       # FastAPI app with CORS
+│   ├── models.py     # Pydantic models
+│   ├── storage.py    # JSON file read/write helpers
+│   └── routers/
+│       ├── users.py         # GET /users
+│       ├── availabilities.py # GET/PUT /availabilities
+│       └── meetings.py      # GET/POST/DELETE /meetings
+└── data/             # JSON storage (auto-created)
+    ├── users.json
+    ├── availabilities.json
+    └── meetings.json
 ```
 
 ### State Management
 
 The Zustand store (`lib/store.ts`) manages:
-- `currentUserId`: Active user (switchable via Header dropdown)
-- `users`: Array of mock users
-- `availabilities`: Per-user time slots (date + startHour/endHour)
-- `meetings`: Scheduled meetings between users
+- `currentUserId`: Active user (switchable via Header dropdown) - persisted to localStorage
+- `users`: Array of users (fetched from API)
+- `availabilities`: Per-user time slots (synced with API)
+- `meetings`: Scheduled meetings (synced with API)
 
-State is persisted to localStorage under key `scheduler-storage`.
+The store uses optimistic updates - local state is updated immediately, then synced with the server. On error, it refetches from the API.
 
 ### Key Data Types
 

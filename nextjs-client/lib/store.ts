@@ -1,26 +1,54 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { SchedulerState, SchedulerActions, TimeSlot, Meeting } from '@/types';
-import { MOCK_USERS } from './constants';
-import { generateId } from './utils';
+import { usersApi, availabilitiesApi, meetingsApi } from './api';
 
 type SchedulerStore = SchedulerState & SchedulerActions;
 
 export const useSchedulerStore = create<SchedulerStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Initial state
-      currentUserId: MOCK_USERS[0].id,
-      users: MOCK_USERS,
+      currentUserId: '',
+      users: [],
       availabilities: [],
       meetings: [],
+      isLoading: false,
+      error: null,
+
+      // Fetch all data from API
+      fetchData: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const [users, availabilities, meetings] = await Promise.all([
+            usersApi.getAll(),
+            availabilitiesApi.getAll(),
+            meetingsApi.getAll(),
+          ]);
+
+          set({
+            users,
+            availabilities,
+            meetings,
+            // Set current user to first user if not set
+            currentUserId: get().currentUserId || users[0]?.id || '',
+            isLoading: false,
+          });
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Failed to fetch data',
+            isLoading: false,
+          });
+        }
+      },
 
       // Actions
       setCurrentUser: (userId: string) => {
         set({ currentUserId: userId });
       },
 
-      setAvailability: (userId: string, slots: TimeSlot[]) => {
+      setAvailability: async (userId: string, slots: TimeSlot[]) => {
+        // Optimistically update local state
         set((state) => {
           const existing = state.availabilities.findIndex(
             (a) => a.userId === userId
@@ -35,26 +63,51 @@ export const useSchedulerStore = create<SchedulerStore>()(
 
           return { availabilities: newAvailabilities };
         });
+
+        // Sync with server
+        try {
+          await availabilitiesApi.update(userId, slots);
+        } catch (error) {
+          // Revert on failure by refetching
+          console.error('Failed to save availability:', error);
+          get().fetchData();
+        }
       },
 
-      addMeeting: (meeting: Omit<Meeting, 'id'>) => {
-        set((state) => ({
-          meetings: [...state.meetings, { ...meeting, id: generateId() }],
-        }));
+      addMeeting: async (meeting: Omit<Meeting, 'id'>) => {
+        try {
+          const newMeeting = await meetingsApi.create(meeting);
+          set((state) => ({
+            meetings: [...state.meetings, newMeeting],
+          }));
+        } catch (error) {
+          console.error('Failed to create meeting:', error);
+          throw error;
+        }
       },
 
-      cancelMeeting: (meetingId: string) => {
+      cancelMeeting: async (meetingId: string) => {
+        // Optimistically remove from local state
+        const previousMeetings = get().meetings;
         set((state) => ({
           meetings: state.meetings.filter((m) => m.id !== meetingId),
         }));
+
+        // Sync with server
+        try {
+          await meetingsApi.delete(meetingId);
+        } catch (error) {
+          // Revert on failure
+          console.error('Failed to cancel meeting:', error);
+          set({ meetings: previousMeetings });
+        }
       },
     }),
     {
       name: 'scheduler-storage',
+      // Only persist currentUserId locally
       partialize: (state) => ({
         currentUserId: state.currentUserId,
-        availabilities: state.availabilities,
-        meetings: state.meetings,
       }),
     }
   )
