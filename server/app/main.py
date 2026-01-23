@@ -39,5 +39,5 @@ def create_app() -> FastAPI:
 
 load_dotenv()
 
-# uvicorn app.main:app --host 0.0.0.0 --port 6969 --reload
+# uvicorn main:app --host 0.0.0.0 --port 6969 --reload
 app = create_app()
