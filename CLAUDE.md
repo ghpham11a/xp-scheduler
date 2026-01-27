@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-XP Scheduler is a meeting scheduling application built with Next.js 16. Users can set their availability for the next 2 weeks and schedule meetings with other users based on overlapping available time slots.
+XP Scheduler is a meeting scheduling application with three clients (Next.js web, Android) sharing a FastAPI backend. Users set their availability for the next 2 weeks and schedule meetings based on overlapping available time slots.
 
 ## Commands
 
@@ -15,6 +15,17 @@ npm run dev      # Start development server (localhost:3000)
 npm run build    # Production build
 npm run start    # Start production server
 npm run lint     # Run ESLint
+```
+
+### Android Client (from `android-client/`)
+
+Open in Android Studio and run, or use Gradle:
+
+```bash
+./gradlew assembleDebug    # Build debug APK
+./gradlew installDebug     # Install on connected device/emulator
+./gradlew test             # Run unit tests
+./gradlew connectedAndroidTest  # Run instrumented tests
 ```
 
 ### FastAPI Server (from `server/`)
@@ -28,63 +39,56 @@ source env/bin/activate  # Mac/Linux
 uvicorn app.main:app --host 0.0.0.0 --port 6969 --reload
 ```
 
-The client expects the API at `http://localhost:6969` (configurable via `NEXT_PUBLIC_API_URL`).
+The clients expect the API at `http://localhost:6969` (Next.js: configurable via `NEXT_PUBLIC_API_URL`, Android emulator uses `10.0.2.2:6969`).
 
 ## Architecture
 
 ### Tech Stack
-- **Frontend**: Next.js 16, React 19, TypeScript, Zustand, Tailwind CSS v4
+- **Web Frontend**: Next.js 16, React 19, TypeScript, Zustand, Tailwind CSS v4
+- **Android**: Kotlin, Jetpack Compose, Material 3, Retrofit, Moshi, ViewModel, DataStore
 - **Backend**: FastAPI (Python), Pydantic, JSON file storage
 
 ### Project Structure
 
 ```
 nextjs-client/
-├── app/              # Next.js App Router
-│   ├── layout.tsx    # Root layout with StoreProvider
-│   └── page.tsx      # Main page with tab navigation (Calendar/Availability/Schedule)
-├── components/
-│   ├── availability/ # AvailabilityPicker, AvailabilityView
-│   ├── calendar/     # CalendarView (weekly calendar display)
-│   ├── layout/       # Header
-│   ├── providers/    # StoreProvider (hydration + API fetch)
-│   └── scheduling/   # MeetingForm, MeetingList, ScheduleMeetingView, TimeSlotPicker, UserAvailabilityGrid
-├── lib/
-│   ├── api.ts        # API client for FastAPI backend
-│   ├── constants.ts  # Day names, hour arrays
-│   ├── store.ts      # Zustand store (syncs with API)
-│   └── utils.ts      # Time formatting, slot merging, conflict detection
-└── types/
-    └── index.ts      # TypeScript interfaces (User, TimeSlot, Meeting, etc.)
+├── app/              # Next.js App Router (layout.tsx, page.tsx)
+├── components/       # React components (availability/, calendar/, scheduling/)
+├── lib/              # API client, Zustand store, utilities
+└── types/            # TypeScript interfaces
+
+android-client/app/src/main/java/com/example/scheduler/
+├── MainActivity.kt           # Entry point
+├── data/                     # Models.kt, ApiService.kt (Retrofit)
+├── viewmodel/                # SchedulerViewModel.kt (state management)
+├── utils/                    # Utils.kt (time formatting, helpers)
+└── ui/
+    ├── components/           # Header.kt
+    ├── screens/              # CalendarScreen, AvailabilityScreen, ScheduleScreen
+    ├── navigation/           # AppNavigation.kt (bottom nav)
+    └── theme/                # Color.kt, Theme.kt
 
 server/
 ├── app/
 │   ├── main.py       # FastAPI app with CORS
 │   ├── models.py     # Pydantic models
 │   ├── storage.py    # JSON file read/write helpers
-│   └── routers/
-│       ├── users.py         # GET /users
-│       ├── availabilities.py # GET/PUT /availabilities
-│       └── meetings.py      # GET/POST/DELETE /meetings
+│   └── routers/      # users.py, availabilities.py, meetings.py
 └── data/             # JSON storage (auto-created)
-    ├── users.json
-    ├── availabilities.json
-    └── meetings.json
 ```
 
 ### State Management
 
-The Zustand store (`lib/store.ts`) manages:
-- `currentUserId`: Active user (switchable via Header dropdown) - persisted to localStorage
-- `users`: Array of users (fetched from API)
-- `availabilities`: Per-user time slots (synced with API)
-- `meetings`: Scheduled meetings (synced with API)
+**Next.js (Zustand)**: `lib/store.ts` manages currentUserId (persisted to localStorage), users, availabilities, and meetings with optimistic updates.
 
-The store uses optimistic updates - local state is updated immediately, then synced with the server. On error, it refetches from the API.
+**Android (ViewModel)**: `SchedulerViewModel.kt` mirrors the same pattern using StateFlow and DataStore for persistence.
+
+Both use optimistic updates - local state updates immediately, then syncs with server. On error, refetch from API.
 
 ### Key Data Types
 
 ```typescript
+// Shared across all clients
 interface TimeSlot {
   date: string;      // ISO date (YYYY-MM-DD)
   startHour: number; // 0-24, supports 0.5 increments for 30-min blocks
@@ -102,18 +106,24 @@ interface Meeting {
 }
 ```
 
+### API Endpoints
+
+- `GET /users` - List all users
+- `GET/PUT /availabilities/{userId}` - Get/update user availability (PUT body: `TimeSlot[]`)
+- `GET/POST/DELETE /meetings` - CRUD for meetings
+
 ### Component Patterns
 
-- All components use `'use client'` directive (client-side rendering)
+**Next.js**:
+- All components use `'use client'` directive
 - StoreProvider handles hydration to prevent SSR/client mismatch
-- Time is represented in decimal hours (9.5 = 9:30 AM)
-- The `@/*` path alias maps to the project root
+- `@/*` path alias maps to project root
 
-### Calendar Views
+**Android**:
+- Jetpack Compose with Material 3
+- Bottom navigation between Calendar/Availability/Schedule screens
+- Retrofit with Moshi for JSON serialization
 
-CalendarView (`components/calendar/CalendarView.tsx`) supports three view modes:
-- **Week**: Traditional 7-column grid (default on desktop)
-- **Day**: Single day with horizontal day selector (default on mobile <768px)
-- **Agenda**: Vertical list grouped by day (most mobile-friendly)
+### Time Representation
 
-The calendar auto-switches to day view on mobile devices.
+Time is represented in decimal hours across all clients (9.5 = 9:30 AM). Availability uses 30-minute blocks. The calendar supports Week, Day, and Agenda view modes.
