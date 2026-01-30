@@ -206,19 +206,21 @@ func findAvailableSlots(
 // MARK: - Enums
 
 enum AvailabilityPreset: CaseIterable {
-    case business, morning, afternoon, evening
+    case fullDay, business, morning, afternoon, evening
 
     var displayName: String {
         switch self {
+        case .fullDay: "All Day"
         case .business: "9-5"
-        case .morning: "AM"
-        case .afternoon: "PM"
-        case .evening: "Eve"
+        case .morning: "Morning"
+        case .afternoon: "Afternoon"
+        case .evening: "Evening"
         }
     }
 
     var startHour: Double {
         switch self {
+        case .fullDay: 6.0
         case .business: 9.0
         case .morning: 6.0
         case .afternoon: 12.0
@@ -228,6 +230,7 @@ enum AvailabilityPreset: CaseIterable {
 
     var endHour: Double {
         switch self {
+        case .fullDay: 22.0
         case .business: 17.0
         case .morning: 12.0
         case .afternoon: 18.0
