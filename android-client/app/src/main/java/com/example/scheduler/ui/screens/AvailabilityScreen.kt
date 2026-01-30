@@ -3,10 +3,14 @@ package com.example.scheduler.ui.screens
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,13 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.scheduler.data.TimeSlot
 import com.example.scheduler.data.User
 import com.example.scheduler.ui.components.UserAvatar
 import com.example.scheduler.utils.*
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 @Composable
@@ -32,9 +35,17 @@ fun AvailabilityScreen(
 ) {
     val next14Days = remember { getNextDays(14) }
     var localSlots by remember(availabilitySlots) { mutableStateOf(availabilitySlots) }
+    var selectedDayIndex by remember { mutableStateOf(0) }
 
     val totalHours = getTotalAvailableHours(localSlots)
     val daysWithAvailability = getDaysWithAvailability(localSlots)
+
+    val currentDay = next14Days[selectedDayIndex]
+    val currentDaySlots = localSlots.filter { it.date == currentDay.toIsoString() }
+    val currentDayHours = getTotalAvailableHours(currentDaySlots)
+
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     Column(modifier = modifier.fillMaxSize()) {
         // Header with user info
@@ -44,26 +55,69 @@ fun AvailabilityScreen(
             daysWithAvailability = daysWithAvailability
         )
 
-        // Legend
-        AvailabilityLegend()
-
-        // Calendar picker
-        LazyRow(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items(next14Days) { date ->
-                DayColumn(
-                    date = date,
-                    slots = localSlots.filter { it.date == date.toIsoString() },
-                    onSlotsChanged = { newSlots ->
-                        localSlots = localSlots.filter { it.date != date.toIsoString() } + newSlots
-                        onUpdateAvailability(mergeTimeSlots(localSlots))
-                    }
-                )
+        // Day selector pills - horizontal scroll
+        DaySelectorRow(
+            days = next14Days,
+            selectedIndex = selectedDayIndex,
+            slots = localSlots,
+            listState = listState,
+            onDaySelected = { index ->
+                selectedDayIndex = index
+                coroutineScope.launch {
+                    listState.animateScrollToItem(maxOf(0, index - 2))
+                }
             }
-        }
+        )
+
+        // Current day header with navigation
+        DayNavigationHeader(
+            currentDay = currentDay,
+            currentDayHours = currentDayHours,
+            canGoPrev = selectedDayIndex > 0,
+            canGoNext = selectedDayIndex < next14Days.size - 1,
+            onPrevDay = {
+                if (selectedDayIndex > 0) {
+                    selectedDayIndex--
+                    coroutineScope.launch {
+                        listState.animateScrollToItem(maxOf(0, selectedDayIndex - 2))
+                    }
+                }
+            },
+            onNextDay = {
+                if (selectedDayIndex < next14Days.size - 1) {
+                    selectedDayIndex++
+                    coroutineScope.launch {
+                        listState.animateScrollToItem(maxOf(0, selectedDayIndex - 2))
+                    }
+                }
+            }
+        )
+
+        // Quick action presets
+        QuickActionButtons(
+            onPresetSelected = { preset ->
+                val dateStr = currentDay.toIsoString()
+                localSlots = localSlots.filter { it.date != dateStr } +
+                        TimeSlot(dateStr, preset.startHour, preset.endHour)
+                onUpdateAvailability(mergeTimeSlots(localSlots))
+            },
+            onClear = {
+                val dateStr = currentDay.toIsoString()
+                localSlots = localSlots.filter { it.date != dateStr }
+                onUpdateAvailability(mergeTimeSlots(localSlots))
+            }
+        )
+
+        // Vertical time blocks
+        VerticalTimeBlocks(
+            date = currentDay,
+            slots = currentDaySlots,
+            onSlotsChanged = { newSlots ->
+                val dateStr = currentDay.toIsoString()
+                localSlots = localSlots.filter { it.date != dateStr } + newSlots
+                onUpdateAvailability(mergeTimeSlots(localSlots))
+            }
+        )
     }
 }
 
@@ -118,11 +172,256 @@ private fun AvailabilityHeader(
 }
 
 @Composable
-private fun AvailabilityLegend() {
+private fun DaySelectorRow(
+    days: List<LocalDate>,
+    selectedIndex: Int,
+    slots: List<TimeSlot>,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    onDaySelected: (Int) -> Unit
+) {
+    LazyRow(
+        state = listState,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        itemsIndexed(days) { index, date ->
+            val isSelected = index == selectedIndex
+            val isToday = date == LocalDate.now()
+            val dayHours = getTotalAvailableHours(slots.filter { it.date == date.toIsoString() })
+
+            DayPill(
+                date = date,
+                isSelected = isSelected,
+                isToday = isToday,
+                hasAvailability = dayHours > 0,
+                onClick = { onDaySelected(index) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun DayPill(
+    date: LocalDate,
+    isSelected: Boolean,
+    isToday: Boolean,
+    hasAvailability: Boolean,
+    onClick: () -> Unit
+) {
+    val backgroundColor = when {
+        isSelected -> MaterialTheme.colorScheme.primary
+        isToday -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    val contentColor = when {
+        isSelected -> MaterialTheme.colorScheme.onPrimary
+        isToday -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(backgroundColor)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = SHORT_DAYS[date.dayOfWeek.value % 7],
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Medium,
+            color = contentColor
+        )
+        Text(
+            text = date.dayOfMonth.toString(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = contentColor
+        )
+        if (hasAvailability) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .size(6.dp)
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.primary,
+                        CircleShape
+                    )
+            )
+        } else {
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun DayNavigationHeader(
+    currentDay: LocalDate,
+    currentDayHours: Double,
+    canGoPrev: Boolean,
+    canGoNext: Boolean,
+    onPrevDay: () -> Unit,
+    onNextDay: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        IconButton(
+            onClick = onPrevDay,
+            enabled = canGoPrev
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = "Previous day",
+                modifier = Modifier.size(28.dp)
+            )
+        }
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = DAYS[currentDay.dayOfWeek.value % 7],
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "${formatDateRelative(currentDay)} • ${
+                    if (currentDayHours > 0) "${currentDayHours.toInt()}h selected"
+                    else "No availability"
+                }",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        IconButton(
+            onClick = onNextDay,
+            enabled = canGoNext
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Next day",
+                modifier = Modifier.size(28.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickActionButtons(
+    onPresetSelected: (AvailabilityPreset) -> Unit,
+    onClear: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // All Day button highlighted
+        AssistChip(
+            onClick = { onPresetSelected(AvailabilityPreset.FULL_DAY) },
+            label = { Text("All Day") },
+            colors = AssistChipDefaults.assistChipColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        )
+
+        AssistChip(
+            onClick = { onPresetSelected(AvailabilityPreset.BUSINESS) },
+            label = { Text("9-5") }
+        )
+
+        AssistChip(
+            onClick = { onPresetSelected(AvailabilityPreset.MORNING) },
+            label = { Text("Morning") }
+        )
+
+        AssistChip(
+            onClick = { onPresetSelected(AvailabilityPreset.AFTERNOON) },
+            label = { Text("Afternoon") }
+        )
+
+        AssistChip(
+            onClick = { onPresetSelected(AvailabilityPreset.EVENING) },
+            label = { Text("Evening") }
+        )
+
+        AssistChip(
+            onClick = onClear,
+            label = { Text("Clear") },
+            colors = AssistChipDefaults.assistChipColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                labelColor = MaterialTheme.colorScheme.onErrorContainer
+            )
+        )
+    }
+}
+
+@Composable
+private fun VerticalTimeBlocks(
+    date: LocalDate,
+    slots: List<TimeSlot>,
+    onSlotsChanged: (List<TimeSlot>) -> Unit
+) {
+    val dateStr = date.toIsoString()
+    // Full 24 hours in 30-min increments
+    val timeBlocks = remember { generateHours(0, 24) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .weight(1f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            timeBlocks.forEach { hour ->
+                val isAvailable = isHourInSlots(dateStr, hour, slots)
+                val isHourMark = hour % 1 == 0.0
+
+                TimeBlockRow(
+                    hour = hour,
+                    isAvailable = isAvailable,
+                    isHourMark = isHourMark,
+                    onToggle = {
+                        val newSlots = if (isAvailable) {
+                            removeTimeBlock(slots, dateStr, hour)
+                        } else {
+                            addTimeBlock(slots, dateStr, hour)
+                        }
+                        onSlotsChanged(mergeTimeSlots(newSlots))
+                    }
+                )
+
+                if (hour < 23.5) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                }
+            }
+        }
+    }
+
+    // Legend at bottom
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -153,185 +452,68 @@ private fun AvailabilityLegend() {
 }
 
 @Composable
-private fun DayColumn(
-    date: LocalDate,
-    slots: List<TimeSlot>,
-    onSlotsChanged: (List<TimeSlot>) -> Unit
-) {
-    val today = LocalDate.now()
-    val isToday = date == today
-    val dateStr = date.toIsoString()
-
-    // Generate all half-hour blocks from 6am to 10pm
-    val timeBlocks = remember { generateHours(6, 22) }
-
-    // Calculate hours available for this day
-    val dayHours = slots.sumOf { it.endHour - it.startHour }
-
-    Column(
-        modifier = Modifier
-            .width(80.dp)
-            .border(
-                width = if (isToday) 2.dp else 1.dp,
-                color = if (isToday) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(8.dp)
-            )
-            .clip(RoundedCornerShape(8.dp))
-    ) {
-        // Day header
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    if (isToday) MaterialTheme.colorScheme.primaryContainer
-                    else MaterialTheme.colorScheme.surfaceVariant
-                )
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = SHORT_DAYS[date.dayOfWeek.value % 7],
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
-            )
-            Text(
-                text = date.dayOfMonth.toString(),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            if (dayHours > 0) {
-                Text(
-                    text = "${dayHours.toInt()}h",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-
-        // Quick action buttons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            PresetButton("9-5") {
-                onSlotsChanged(listOf(TimeSlot(dateStr, 9.0, 17.0)))
-            }
-            PresetButton("AM") {
-                onSlotsChanged(listOf(TimeSlot(dateStr, 6.0, 12.0)))
-            }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            PresetButton("PM") {
-                onSlotsChanged(listOf(TimeSlot(dateStr, 12.0, 18.0)))
-            }
-            PresetButton("Eve") {
-                onSlotsChanged(listOf(TimeSlot(dateStr, 18.0, 22.0)))
-            }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            IconButton(
-                onClick = { onSlotsChanged(emptyList()) },
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    Icons.Default.Clear,
-                    contentDescription = "Clear",
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-
-        HorizontalDivider()
-
-        // Time blocks
-        Column(
-            modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .padding(4.dp)
-        ) {
-            timeBlocks.forEach { hour ->
-                val isAvailable = isHourInSlots(dateStr, hour, slots)
-
-                TimeBlock(
-                    hour = hour,
-                    isAvailable = isAvailable,
-                    onToggle = {
-                        val newSlots = if (isAvailable) {
-                            // Remove this half-hour block
-                            removeTimeBlock(slots, dateStr, hour)
-                        } else {
-                            // Add this half-hour block
-                            addTimeBlock(slots, dateStr, hour)
-                        }
-                        onSlotsChanged(mergeTimeSlots(newSlots))
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PresetButton(
-    label: String,
-    onClick: () -> Unit
-) {
-    TextButton(
-        onClick = onClick,
-        modifier = Modifier.height(28.dp),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-    ) {
-        Text(
-            text = label,
-            fontSize = 10.sp
-        )
-    }
-}
-
-@Composable
-private fun TimeBlock(
+private fun TimeBlockRow(
     hour: Double,
     isAvailable: Boolean,
+    isHourMark: Boolean,
     onToggle: () -> Unit
 ) {
-    val isHalfHour = hour % 1 != 0.0
+    val backgroundColor = if (isAvailable) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        Color.Transparent
+    }
 
-    Box(
+    val contentColor = if (isAvailable) {
+        MaterialTheme.colorScheme.onPrimary
+    } else if (isHourMark) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    }
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (isHalfHour) 20.dp else 24.dp)
-            .padding(vertical = 1.dp)
-            .clip(RoundedCornerShape(4.dp))
-            .background(
-                if (isAvailable) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.surfaceVariant
-            )
-            .clickable(onClick = onToggle),
-        contentAlignment = Alignment.Center
+            .background(backgroundColor)
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        if (!isHalfHour) {
-            Text(
-                text = formatHour(hour).replace(" ", "\n"),
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 8.sp,
-                color = if (isAvailable) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                lineHeight = 8.sp
-            )
+        Text(
+            text = formatHour(hour),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isHourMark) FontWeight.Medium else FontWeight.Normal,
+            color = contentColor,
+            modifier = Modifier.width(72.dp)
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .border(
+                    width = 2.dp,
+                    color = if (isAvailable) MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.outline,
+                    shape = CircleShape
+                )
+                .background(
+                    if (isAvailable) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
+                    else Color.Transparent,
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isAvailable) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = "Selected",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
+            }
         }
     }
 }
