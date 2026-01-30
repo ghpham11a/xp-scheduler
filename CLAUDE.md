@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-XP Scheduler is a meeting scheduling application with three clients (Next.js web, Android) sharing a FastAPI backend. Users set their availability for the next 2 weeks and schedule meetings based on overlapping available time slots.
+XP Scheduler is a meeting scheduling application with four clients (Next.js web, Android, iOS) sharing a FastAPI backend. Users set their availability for the next 2 weeks and schedule meetings based on overlapping available time slots.
 
 ## Commands
 
@@ -28,6 +28,15 @@ Open in Android Studio and run, or use Gradle:
 ./gradlew connectedAndroidTest  # Run instrumented tests
 ```
 
+### iOS Client (from `ios-client/Scheduler/`)
+
+Open in Xcode and run, or use xcodebuild:
+
+```bash
+xcodebuild -project ios-client/Scheduler/Scheduler.xcodeproj -scheme Scheduler -sdk iphonesimulator build
+xcodebuild -project ios-client/Scheduler/Scheduler.xcodeproj -scheme Scheduler test -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16'
+```
+
 ### FastAPI Server (from `server/`)
 
 ```bash
@@ -39,13 +48,14 @@ source env/bin/activate  # Mac/Linux
 uvicorn app.main:app --host 0.0.0.0 --port 6969 --reload
 ```
 
-The clients expect the API at `http://localhost:6969` (Next.js: configurable via `NEXT_PUBLIC_API_URL`, Android emulator uses `10.0.2.2:6969`).
+The clients expect the API at `http://localhost:6969` (Next.js: configurable via `NEXT_PUBLIC_API_URL`, Android emulator uses `10.0.2.2:6969`, iOS simulator uses `localhost:6969`).
 
 ## Architecture
 
 ### Tech Stack
 - **Web Frontend**: Next.js 16, React 19, TypeScript, Zustand, Tailwind CSS v4
 - **Android**: Kotlin, Jetpack Compose, Material 3, Retrofit, Moshi, ViewModel, DataStore
+- **iOS**: Swift, SwiftUI (iOS 17+), @Observable, URLSession, UserDefaults
 - **Backend**: FastAPI (Python), Pydantic, JSON file storage
 
 ### Project Structure
@@ -68,6 +78,19 @@ android-client/app/src/main/java/com/example/scheduler/
     ├── navigation/           # AppNavigation.kt (bottom nav)
     └── theme/                # Color.kt, Theme.kt
 
+ios-client/Scheduler/Scheduler/
+├── SchedulerApp.swift        # App entry point
+├── ContentView.swift         # TabView container (Calendar/Availability/Schedule)
+├── Models/                   # Codable data models
+├── Services/                 # APIService (URLSession HTTP client)
+├── ViewModels/               # SchedulerViewModel (@Observable, optimistic updates)
+├── Views/
+│   ├── Calendar/             # CalendarView (Week/Day/Agenda modes)
+│   ├── Availability/         # AvailabilityView (14-day grid editor)
+│   ├── Schedule/             # ScheduleView (4-step meeting wizard)
+│   └── Components/           # HeaderView, UserAvatar
+└── Utilities/                # Utils (time formatting, slot logic, conflict detection)
+
 server/
 ├── app/
 │   ├── main.py       # FastAPI app with CORS
@@ -83,7 +106,9 @@ server/
 
 **Android (ViewModel)**: `SchedulerViewModel.kt` mirrors the same pattern using StateFlow and DataStore for persistence.
 
-Both use optimistic updates - local state updates immediately, then syncs with server. On error, refetch from API.
+**iOS (@Observable)**: `SchedulerViewModel.swift` uses iOS 17's `@Observable` macro with UserDefaults for currentUserId persistence.
+
+All three use optimistic updates - local state updates immediately, then syncs with server. On error, refetch from API.
 
 ### Key Data Types
 
@@ -123,6 +148,12 @@ interface Meeting {
 - Jetpack Compose with Material 3
 - Bottom navigation between Calendar/Availability/Schedule screens
 - Retrofit with Moshi for JSON serialization
+
+**iOS**:
+- SwiftUI with @Observable (requires iOS 17+)
+- TabView for Calendar/Availability/Schedule navigation
+- URLSession with Codable for JSON serialization
+- Views receive data and callbacks as parameters (no environment objects)
 
 ### Time Representation
 
