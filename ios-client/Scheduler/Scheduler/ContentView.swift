@@ -4,12 +4,14 @@ enum AppTab: String, CaseIterable {
     case calendar = "Calendar"
     case availability = "Availability"
     case schedule = "Schedule"
+    case settings = "Settings"
 
     var icon: String {
         switch self {
         case .calendar: "calendar"
         case .availability: "calendar.badge.clock"
         case .schedule: "plus.circle"
+        case .settings: "gearshape"
         }
     }
 }
@@ -25,13 +27,6 @@ struct ContentView: View {
             } else if let error = viewModel.error {
                 errorView(error)
             } else {
-                HeaderView(
-                    currentUser: viewModel.currentUser,
-                    users: viewModel.users,
-                    onUserSelected: { viewModel.setCurrentUser($0) }
-                )
-                Divider()
-
                 TabView(selection: $selectedTab) {
                     Tab(AppTab.calendar.rawValue, systemImage: AppTab.calendar.icon, value: .calendar) {
                         CalendarView(
@@ -39,6 +34,7 @@ struct ContentView: View {
                             users: viewModel.users,
                             availabilities: viewModel.availabilities,
                             meetings: viewModel.meetings,
+                            use24HourTime: viewModel.use24HourTime,
                             onCancelMeeting: { viewModel.cancelMeeting($0) },
                             userById: { viewModel.userById($0) }
                         )
@@ -48,6 +44,7 @@ struct ContentView: View {
                         AvailabilityView(
                             currentUser: viewModel.currentUser,
                             availabilitySlots: viewModel.currentUserAvailability?.slots ?? [],
+                            use24HourTime: viewModel.use24HourTime,
                             onUpdateAvailability: { slots in
                                 viewModel.setAvailability(userId: viewModel.currentUserId, slots: slots)
                             }
@@ -60,6 +57,7 @@ struct ContentView: View {
                             users: viewModel.users,
                             availabilities: viewModel.availabilities,
                             meetings: viewModel.meetings,
+                            use24HourTime: viewModel.use24HourTime,
                             onScheduleMeeting: { org, part, date, start, end, title in
                                 viewModel.addMeeting(
                                     organizerId: org,
@@ -72,6 +70,18 @@ struct ContentView: View {
                             },
                             onCancelMeeting: { viewModel.cancelMeeting($0) },
                             userById: { viewModel.userById($0) }
+                        )
+                    }
+
+                    Tab(AppTab.settings.rawValue, systemImage: AppTab.settings.icon, value: .settings) {
+                        SettingsView(
+                            currentUser: viewModel.currentUser,
+                            users: viewModel.users,
+                            use24HourTime: Binding(
+                                get: { viewModel.use24HourTime },
+                                set: { viewModel.use24HourTime = $0 }
+                            ),
+                            onUserSelected: { viewModel.setCurrentUser($0) }
                         )
                     }
                 }

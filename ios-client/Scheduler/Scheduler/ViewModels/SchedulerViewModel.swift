@@ -6,6 +6,9 @@ final class SchedulerViewModel {
     var currentUserId: String = "" {
         didSet { UserDefaults.standard.set(currentUserId, forKey: "currentUserId") }
     }
+    var use24HourTime: Bool = false {
+        didSet { UserDefaults.standard.set(use24HourTime, forKey: "use24HourTime") }
+    }
     var users: [User] = []
     var availabilities: [Availability] = []
     var meetings: [Meeting] = []
@@ -16,6 +19,7 @@ final class SchedulerViewModel {
         if let saved = UserDefaults.standard.string(forKey: "currentUserId") {
             currentUserId = saved
         }
+        use24HourTime = UserDefaults.standard.bool(forKey: "use24HourTime")
         Task { await fetchData() }
     }
 
