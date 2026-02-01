@@ -20,7 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.scheduler.data.Availability
 import com.example.scheduler.data.Meeting
 import com.example.scheduler.data.User
 import com.example.scheduler.ui.components.UserAvatar
@@ -37,8 +36,8 @@ enum class CalendarViewMode {
 fun CalendarScreen(
     currentUserId: String,
     users: List<User>,
-    availabilities: List<Availability>,
     meetings: List<Meeting>,
+    showAllHours: Boolean,
     onCancelMeeting: (String) -> Unit,
     getUserById: (String) -> User?,
     modifier: Modifier = Modifier
@@ -47,7 +46,6 @@ fun CalendarScreen(
     var weekOffset by remember { mutableIntStateOf(0) }
     var selectedDay by remember { mutableStateOf(LocalDate.now()) }
     var selectedMeeting by remember { mutableStateOf<Meeting?>(null) }
-    var showAllHours by remember { mutableStateOf(false) }
 
     val today = LocalDate.now()
     val weekStart = getWeekStart(today.plusWeeks(weekOffset.toLong()))
@@ -56,8 +54,6 @@ fun CalendarScreen(
     val currentUserMeetings = meetings.filter {
         it.organizerId == currentUserId || it.participantId == currentUserId
     }
-
-    val currentUserAvailability = availabilities.find { it.userId == currentUserId }?.slots ?: emptyList()
 
     Column(modifier = modifier.fillMaxSize()) {
         // View mode selector and navigation
@@ -69,16 +65,13 @@ fun CalendarScreen(
             weekOffset = weekOffset,
             selectedDay = selectedDay,
             onWeekOffsetChange = { weekOffset = it },
-            onSelectedDayChange = { selectedDay = it },
-            showAllHours = showAllHours,
-            onShowAllHoursChange = { showAllHours = it }
+            onSelectedDayChange = { selectedDay = it }
         )
 
         when (viewMode) {
             CalendarViewMode.WEEK -> WeekView(
                 weekDays = weekDays,
                 currentUserMeetings = currentUserMeetings,
-                currentUserAvailability = currentUserAvailability,
                 showAllHours = showAllHours,
                 getUserById = getUserById,
                 onMeetingClick = { selectedMeeting = it }
@@ -88,7 +81,6 @@ fun CalendarScreen(
                 weekDays = weekDays,
                 onDaySelected = { selectedDay = it },
                 currentUserMeetings = currentUserMeetings,
-                currentUserAvailability = currentUserAvailability,
                 showAllHours = showAllHours,
                 getUserById = getUserById,
                 onMeetingClick = { selectedMeeting = it }
@@ -96,7 +88,6 @@ fun CalendarScreen(
             CalendarViewMode.AGENDA -> AgendaView(
                 weekDays = weekDays,
                 currentUserMeetings = currentUserMeetings,
-                currentUserAvailability = currentUserAvailability,
                 getUserById = getUserById,
                 onMeetingClick = { selectedMeeting = it }
             )
@@ -128,9 +119,7 @@ private fun CalendarHeader(
     weekOffset: Int,
     selectedDay: LocalDate,
     onWeekOffsetChange: (Int) -> Unit,
-    onSelectedDayChange: (LocalDate) -> Unit,
-    showAllHours: Boolean,
-    onShowAllHoursChange: (Boolean) -> Unit
+    onSelectedDayChange: (LocalDate) -> Unit
 ) {
     val weekEnd = weekDays.last()
     val today = LocalDate.now()
@@ -175,61 +164,44 @@ private fun CalendarHeader(
         }
 
         // View mode selector
-        Row(
+        SingleChoiceSegmentedButtonRow(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 16.dp)
         ) {
-            SingleChoiceSegmentedButtonRow {
-                CalendarViewMode.entries.forEachIndexed { index, mode ->
-                    SegmentedButton(
-                        selected = viewMode == mode,
-                        onClick = { onViewModeChange(mode) },
-                        shape = SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = CalendarViewMode.entries.size
-                        ),
-                        icon = {
-                            when (mode) {
-                                CalendarViewMode.WEEK -> Icon(
-                                    Icons.Default.CalendarViewWeek,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                CalendarViewMode.DAY -> Icon(
-                                    Icons.Default.CalendarViewDay,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                CalendarViewMode.AGENDA -> Icon(
-                                    Icons.AutoMirrored.Filled.List,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
+            CalendarViewMode.entries.forEachIndexed { index, mode ->
+                SegmentedButton(
+                    selected = viewMode == mode,
+                    onClick = { onViewModeChange(mode) },
+                    shape = SegmentedButtonDefaults.itemShape(
+                        index = index,
+                        count = CalendarViewMode.entries.size
+                    ),
+                    icon = {
+                        when (mode) {
+                            CalendarViewMode.WEEK -> Icon(
+                                Icons.Default.CalendarViewWeek,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            CalendarViewMode.DAY -> Icon(
+                                Icons.Default.CalendarViewDay,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            CalendarViewMode.AGENDA -> Icon(
+                                Icons.AutoMirrored.Filled.List,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
-                    ) {
-                        Text(
-                            text = mode.name.lowercase().replaceFirstChar { it.uppercase() },
-                            fontSize = 12.sp
-                        )
                     }
+                ) {
+                    Text(
+                        text = mode.name.lowercase().replaceFirstChar { it.uppercase() },
+                        fontSize = 12.sp
+                    )
                 }
-            }
-
-            // Show all hours toggle
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text("24h", style = MaterialTheme.typography.bodySmall)
-                Switch(
-                    checked = showAllHours,
-                    onCheckedChange = onShowAllHoursChange,
-                    modifier = Modifier.height(24.dp)
-                )
             }
         }
 
@@ -241,7 +213,6 @@ private fun CalendarHeader(
 private fun WeekView(
     weekDays: List<LocalDate>,
     currentUserMeetings: List<Meeting>,
-    currentUserAvailability: List<com.example.scheduler.data.TimeSlot>,
     showAllHours: Boolean,
     getUserById: (String) -> User?,
     onMeetingClick: (Meeting) -> Unit
@@ -323,25 +294,6 @@ private fun WeekView(
                             )
                         }
 
-                        // Availability blocks
-                        currentUserAvailability
-                            .filter { it.date == day.toIsoString() }
-                            .forEach { slot ->
-                                val top = ((slot.startHour - startHour) * 60).dp
-                                val height = ((slot.endHour - slot.startHour) * 60).dp
-                                if (slot.startHour >= startHour && slot.endHour <= endHour) {
-                                    Box(
-                                        modifier = Modifier
-                                            .offset(y = top)
-                                            .fillMaxWidth()
-                                            .height(height)
-                                            .background(
-                                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                                            )
-                                    )
-                                }
-                            }
-
                         // Meetings
                         currentUserMeetings
                             .filter { it.date == day.toIsoString() }
@@ -415,7 +367,6 @@ private fun DayView(
     weekDays: List<LocalDate>,
     onDaySelected: (LocalDate) -> Unit,
     currentUserMeetings: List<Meeting>,
-    currentUserAvailability: List<com.example.scheduler.data.TimeSlot>,
     showAllHours: Boolean,
     getUserById: (String) -> User?,
     onMeetingClick: (Meeting) -> Unit
@@ -457,7 +408,6 @@ private fun DayView(
         WeekView(
             weekDays = listOf(selectedDay),
             currentUserMeetings = currentUserMeetings,
-            currentUserAvailability = currentUserAvailability,
             showAllHours = showAllHours,
             getUserById = getUserById,
             onMeetingClick = onMeetingClick
@@ -469,7 +419,6 @@ private fun DayView(
 private fun AgendaView(
     weekDays: List<LocalDate>,
     currentUserMeetings: List<Meeting>,
-    currentUserAvailability: List<com.example.scheduler.data.TimeSlot>,
     getUserById: (String) -> User?,
     onMeetingClick: (Meeting) -> Unit
 ) {
@@ -506,8 +455,6 @@ private fun AgendaView(
         ) {
             meetingsByDay.forEach { (dateStr, meetings) ->
                 val date = dateStr.toLocalDate()
-                val dayAvailability = currentUserAvailability.filter { it.date == dateStr }
-                val availableHours = dayAvailability.sumOf { it.endHour - it.startHour }
 
                 item(key = dateStr) {
                     Column {
@@ -525,13 +472,6 @@ private fun AgendaView(
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
-                            if (availableHours > 0) {
-                                Text(
-                                    text = "${availableHours}h available",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
                         }
 
                         // Meetings for this day

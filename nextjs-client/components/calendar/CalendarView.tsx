@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useSchedulerStore } from '@/lib/store';
-import { Meeting, TimeSlot } from '@/types';
+import { Meeting } from '@/types';
 import { formatTime, getUserInitials } from '@/lib/utils';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -18,15 +18,6 @@ function getVisibleHours(showAllHours: boolean): number[] {
   }
   // 6am to 10pm
   return Array.from({ length: 32 }, (_, i) => 6 + i * 0.5);
-}
-
-function isSlotAvailable(slots: TimeSlot[], date: string, hour: number): boolean {
-  return slots.some(
-    (slot) =>
-      slot.date === date &&
-      hour >= slot.startHour &&
-      hour + 0.5 <= slot.endHour
-  );
 }
 
 function getWeekDates(weekOffset: number): { date: Date; dateString: string }[] {
@@ -118,9 +109,12 @@ function getOverlappingGroups(meetings: Meeting[]): Map<string, { column: number
   return result;
 }
 
-export function CalendarView() {
-  const { currentUserId, users, availabilities, meetings, cancelMeeting } = useSchedulerStore();
-  const [showAllHours, setShowAllHours] = useState(false);
+interface CalendarViewProps {
+  showAllHours: boolean;
+}
+
+export function CalendarView({ showAllHours }: CalendarViewProps) {
+  const { currentUserId, users, meetings, cancelMeeting } = useSchedulerStore();
   const [weekOffset, setWeekOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(getCurrentTimeDecimal());
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
@@ -153,8 +147,6 @@ export function CalendarView() {
   }, []);
 
   const currentUser = users.find((u) => u.id === currentUserId);
-  const currentAvailability = availabilities.find((a) => a.userId === currentUserId);
-  const slots = currentAvailability?.slots ?? [];
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
   const visibleHours = getVisibleHours(showAllHours);
@@ -205,11 +197,6 @@ export function CalendarView() {
     if (currentTime < minHour || currentTime > maxHour) return null;
     return (currentTime - minHour) * 24; // 24px per hour (12px per 30min * 2)
   };
-
-  // Calculate hours available this week
-  const weekAvailableHours = slots
-    .filter(slot => weekDateStrings.has(slot.date))
-    .reduce((acc, slot) => acc + (slot.endHour - slot.startHour), 0);
 
   // Calculate total meeting hours this week
   const weekMeetingHours = userMeetings.reduce((acc, m) => acc + (m.endHour - m.startHour), 0);
@@ -330,9 +317,8 @@ export function CalendarView() {
                   isToday ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
                 }`}
               >
-                {/* Availability Background + Grid Lines */}
+                {/* Grid Lines */}
                 {visibleHours.map((hour, index) => {
-                  const isAvailable = isSlotAvailable(slots, dateString, hour);
                   const isHourMark = index % 2 === 0;
 
                   return (
@@ -340,10 +326,6 @@ export function CalendarView() {
                       key={hour}
                       className={`h-6 ${
                         isHourMark ? 'border-b border-zinc-100 dark:border-zinc-800' : 'border-b border-zinc-50 dark:border-zinc-850'
-                      } ${
-                        isAvailable
-                          ? 'bg-blue-100/70 dark:bg-blue-900/30'
-                          : ''
                       }`}
                     />
                   );
@@ -485,9 +467,8 @@ export function CalendarView() {
 
           {/* Day Column */}
           <div className={`flex-1 relative ${isToday ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-            {/* Availability Background + Grid Lines */}
+            {/* Grid Lines */}
             {visibleHours.map((hour, index) => {
-              const isAvailable = isSlotAvailable(slots, selectedDay.dateString, hour);
               const isHourMark = index % 2 === 0;
 
               return (
@@ -495,8 +476,6 @@ export function CalendarView() {
                   key={hour}
                   className={`h-6 ${
                     isHourMark ? 'border-b border-zinc-100 dark:border-zinc-800' : 'border-b border-zinc-50 dark:border-zinc-850'
-                  } ${
-                    isAvailable ? 'bg-blue-100/70 dark:bg-blue-900/30' : ''
                   }`}
                 />
               );
@@ -590,32 +569,23 @@ export function CalendarView() {
             const dayMeetings = meetingsByDate.get(dateString)!;
             const date = new Date(dateString + 'T00:00:00');
             const isToday = dateString === todayString;
-            const daySlots = slots.filter(s => s.date === dateString);
-            const dayAvailableHours = daySlots.reduce((acc, s) => acc + (s.endHour - s.startHour), 0);
 
             return (
               <div key={dateString} className={isToday ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}>
                 {/* Date Header */}
                 <div className="px-4 py-3 bg-zinc-50 dark:bg-zinc-800/50 sticky top-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {isToday && (
-                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500 text-white">
-                          Today
-                        </span>
-                      )}
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                        {DAY_NAMES_FULL[date.getDay()]}
-                      </span>
-                      <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                        {MONTH_NAMES[date.getMonth()]} {date.getDate()}
-                      </span>
-                    </div>
-                    {dayAvailableHours > 0 && (
-                      <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                        {dayAvailableHours}h available
+                  <div className="flex items-center gap-2">
+                    {isToday && (
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500 text-white">
+                        Today
                       </span>
                     )}
+                    <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                      {DAY_NAMES_FULL[date.getDay()]}
+                    </span>
+                    <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                      {MONTH_NAMES[date.getMonth()]} {date.getDate()}
+                    </span>
                   </div>
                 </div>
 
@@ -764,26 +734,11 @@ export function CalendarView() {
             {weekLabel}
           </div>
 
-          {/* Controls */}
-          <label className="hidden sm:flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-            <input
-              type="checkbox"
-              checked={showAllHours}
-              onChange={(e) => setShowAllHours(e.target.checked)}
-              className="rounded border-zinc-300 dark:border-zinc-600"
-            />
-            <span className="hidden md:inline">Show all 24 hours</span>
-            <span className="md:hidden">24h</span>
-          </label>
         </div>
 
         {/* Legend - only show on week/day view */}
         {viewMode !== 'agenda' && (
           <div className="flex items-center gap-4 mt-3 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded bg-blue-100 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-800" />
-              <span className="text-zinc-600 dark:text-zinc-400 text-xs">Available</span>
-            </div>
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded bg-blue-500" />
               <span className="text-zinc-600 dark:text-zinc-400 text-xs">Meeting</span>
@@ -811,9 +766,6 @@ export function CalendarView() {
           </div>
           <div className="text-zinc-600 dark:text-zinc-400">
             <span className="font-medium text-zinc-900 dark:text-zinc-100">{weekMeetingHours}</span>h scheduled
-          </div>
-          <div className="text-zinc-600 dark:text-zinc-400">
-            <span className="font-medium text-zinc-900 dark:text-zinc-100">{weekAvailableHours}</span>h available
           </div>
         </div>
       </div>

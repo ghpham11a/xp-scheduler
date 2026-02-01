@@ -1,13 +1,9 @@
 package com.example.scheduler.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,12 +19,8 @@ import com.example.scheduler.data.User
 @Composable
 fun Header(
     currentUser: User?,
-    users: List<User>,
-    onUserSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var dropdownExpanded by remember { mutableStateOf(false) }
-
     TopAppBar(
         title = {
             Row(
@@ -57,66 +49,18 @@ fun Header(
             }
         },
         actions = {
-            // User selector dropdown
-            Box {
+            if (currentUser != null) {
                 Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { dropdownExpanded = true }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(end = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (currentUser != null) {
-                        UserAvatar(user = currentUser, size = 32)
-                        Text(
-                            text = currentUser.name,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = "Select user"
+                    UserAvatar(user = currentUser, size = 32)
+                    Text(
+                        text = currentUser.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-
-                DropdownMenu(
-                    expanded = dropdownExpanded,
-                    onDismissRequest = { dropdownExpanded = false }
-                ) {
-                    users.forEach { user ->
-                        DropdownMenuItem(
-                            text = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    UserAvatar(user = user, size = 28)
-                                    Column {
-                                        Text(user.name)
-                                        Text(
-                                            text = user.email,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            },
-                            onClick = {
-                                onUserSelected(user.id)
-                                dropdownExpanded = false
-                            },
-                            trailingIcon = {
-                                if (user.id == currentUser?.id) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                        )
-                    }
                 }
             }
         },

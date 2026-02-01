@@ -11,6 +11,7 @@ import com.example.scheduler.ui.components.Header
 import com.example.scheduler.ui.screens.AvailabilityScreen
 import com.example.scheduler.ui.screens.CalendarScreen
 import com.example.scheduler.ui.screens.ScheduleScreen
+import com.example.scheduler.ui.screens.SettingsScreen
 import com.example.scheduler.viewmodel.SchedulerState
 
 enum class AppScreen(
@@ -19,7 +20,8 @@ enum class AppScreen(
 ) {
     CALENDAR("Calendar", Icons.Default.CalendarMonth),
     AVAILABILITY("Availability", Icons.Default.EventAvailable),
-    SCHEDULE("Schedule", Icons.Default.Add)
+    SCHEDULE("Schedule", Icons.Default.Add),
+    SETTINGS("Settings", Icons.Default.Settings)
 }
 
 @Composable
@@ -39,17 +41,14 @@ fun MainScreen(
     getUserById: (String) -> com.example.scheduler.data.User?
 ) {
     var currentScreen by remember { mutableStateOf(AppScreen.CALENDAR) }
+    var showAllHours by remember { mutableStateOf(false) }
 
     val currentUser = state.users.find { it.id == state.currentUserId }
     val currentUserAvailability = state.availabilities.find { it.userId == state.currentUserId }
 
     Scaffold(
         topBar = {
-            Header(
-                currentUser = currentUser,
-                users = state.users,
-                onUserSelected = onUserSelected
-            )
+            Header(currentUser = currentUser)
         },
         bottomBar = {
             NavigationBar {
@@ -84,8 +83,8 @@ fun MainScreen(
                         AppScreen.CALENDAR -> CalendarScreen(
                             currentUserId = state.currentUserId,
                             users = state.users,
-                            availabilities = state.availabilities,
                             meetings = state.meetings,
+                            showAllHours = showAllHours,
                             onCancelMeeting = onCancelMeeting,
                             getUserById = getUserById
                         )
@@ -104,6 +103,13 @@ fun MainScreen(
                             onScheduleMeeting = onScheduleMeeting,
                             onCancelMeeting = onCancelMeeting,
                             getUserById = getUserById
+                        )
+                        AppScreen.SETTINGS -> SettingsScreen(
+                            currentUser = currentUser,
+                            users = state.users,
+                            showAllHours = showAllHours,
+                            onUserSelected = onUserSelected,
+                            onShowAllHoursChanged = { showAllHours = it }
                         )
                     }
                 }
