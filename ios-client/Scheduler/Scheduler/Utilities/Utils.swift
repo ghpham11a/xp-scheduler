@@ -2,14 +2,22 @@ import Foundation
 
 // MARK: - Time Formatting
 
-func formatHour(_ hour: Double) -> String {
+func formatHour(_ hour: Double, use24Hour: Bool = false) -> String {
     let hourInt = Int(hour)
     let minutes = Int((hour - Double(hourInt)) * 60)
+
+    if use24Hour {
+        if minutes == 0 {
+            return String(format: "%02d:00", hourInt)
+        }
+        return String(format: "%02d:%02d", hourInt, minutes)
+    }
+
     let displayHour: Int
     switch hourInt {
     case 0, 24: displayHour = 12
     case 13...23: displayHour = hourInt - 12
-    default: displayHour = hourInt
+    default: displayHour = hourInt == 0 ? 12 : hourInt
     }
     let amPm = hourInt < 12 ? "AM" : "PM"
     if minutes == 0 {
@@ -18,8 +26,25 @@ func formatHour(_ hour: Double) -> String {
     return "\(displayHour):\(String(format: "%02d", minutes)) \(amPm)"
 }
 
-func formatTimeRange(_ startHour: Double, _ endHour: Double) -> String {
-    "\(formatHour(startHour)) - \(formatHour(endHour))"
+func formatTimeRange(_ startHour: Double, _ endHour: Double, use24Hour: Bool = false) -> String {
+    "\(formatHour(startHour, use24Hour: use24Hour)) - \(formatHour(endHour, use24Hour: use24Hour))"
+}
+
+func formatHourCompact(_ hour: Double, use24Hour: Bool = false) -> String {
+    let hourInt = Int(hour)
+
+    if use24Hour {
+        return "\(hourInt)"
+    }
+
+    let displayHour: Int
+    switch hourInt {
+    case 0, 12, 24: displayHour = 12
+    case 13...23: displayHour = hourInt - 12
+    default: displayHour = hourInt
+    }
+    let suffix = hourInt < 12 ? "a" : "p"
+    return "\(displayHour)\(suffix)"
 }
 
 // MARK: - Date Helpers

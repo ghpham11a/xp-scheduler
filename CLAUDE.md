@@ -80,15 +80,17 @@ android-client/app/src/main/java/com/example/scheduler/
 
 ios-client/Scheduler/Scheduler/
 ├── SchedulerApp.swift        # App entry point
-├── ContentView.swift         # TabView container (Calendar/Availability/Schedule)
+├── ContentView.swift         # TabView container (Calendar/Availability/Schedule/Settings)
 ├── Models/                   # Codable data models
-├── Services/                 # APIService (URLSession HTTP client)
-├── ViewModels/               # SchedulerViewModel (@Observable, optimistic updates)
-├── Views/
+├── Core/
+│   ├── APIService.swift      # URLSession HTTP client
+│   └── Components/           # HeaderView, UserAvatar
+├── Features/
 │   ├── Calendar/             # CalendarView (Week/Day/Agenda modes)
 │   ├── Availability/         # AvailabilityView (14-day grid editor)
 │   ├── Schedule/             # ScheduleView (4-step meeting wizard)
-│   └── Components/           # HeaderView, UserAvatar
+│   └── Settings/             # SettingsView
+├── ViewModels/               # SchedulerViewModel (@Observable, optimistic updates)
 └── Utilities/                # Utils (time formatting, slot logic, conflict detection)
 
 server/

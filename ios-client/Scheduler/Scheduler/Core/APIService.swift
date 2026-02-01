@@ -1,7 +1,7 @@
 import Foundation
 
 struct APIService: Sendable {
-    static let baseURL = "http://localhost:6969"
+    static let baseURL = "http://feedback-test.ngrok.io"
 
     private static let decoder: JSONDecoder = {
         let d = JSONDecoder()

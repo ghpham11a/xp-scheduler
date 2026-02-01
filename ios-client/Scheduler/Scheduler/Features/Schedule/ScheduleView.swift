@@ -12,6 +12,7 @@ struct ScheduleView: View {
     let users: [User]
     let availabilities: [Availability]
     let meetings: [Meeting]
+    let use24HourTime: Bool
     let onScheduleMeeting: (String, String, String, Double, Double, String) -> Void
     let onCancelMeeting: (String) -> Void
     let userById: (String) -> User?
@@ -253,7 +254,7 @@ struct ScheduleView: View {
                                             selectedStartHour = startHour
                                             currentStep = .confirm
                                         } label: {
-                                            Text(formatHour(startHour))
+                                            Text(formatHour(startHour, use24Hour: use24HourTime))
                                                 .font(.subheadline)
                                                 .padding(.horizontal, 12)
                                                 .padding(.vertical, 8)
@@ -311,7 +312,7 @@ struct ScheduleView: View {
 
                     if let startHour = selectedStartHour, let dur = selectedDuration {
                         Label {
-                            Text("\(formatTimeRange(startHour, endHour)) (\(dur.displayName))")
+                            Text("\(formatTimeRange(startHour, endHour, use24Hour: use24HourTime)) (\(dur.displayName))")
                                 .fontWeight(.medium)
                         } icon: {
                             Image(systemName: "clock")
@@ -383,7 +384,7 @@ struct ScheduleView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 if let date = fromIsoString(meeting.date) {
-                                    Text("\(formatDateRelative(date)) - \(formatTimeRange(meeting.startHour, meeting.endHour))")
+                                    Text("\(formatDateRelative(date)) - \(formatTimeRange(meeting.startHour, meeting.endHour, use24Hour: use24HourTime))")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }

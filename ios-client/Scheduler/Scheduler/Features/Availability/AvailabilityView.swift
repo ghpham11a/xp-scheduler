@@ -3,6 +3,7 @@ import SwiftUI
 struct AvailabilityView: View {
     let currentUser: User?
     let availabilitySlots: [TimeSlot]
+    let use24HourTime: Bool
     let onUpdateAvailability: ([TimeSlot]) -> Void
 
     @State private var localSlots: [TimeSlot] = []
@@ -12,51 +13,13 @@ struct AvailabilityView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            availabilityHeader
             daySelectorRow
             dayNavigationHeader
-            quickActionButtons
             verticalTimeBlocks
             legend
         }
         .onAppear { localSlots = availabilitySlots }
         .onChange(of: availabilitySlots) { _, newValue in localSlots = newValue }
-    }
-
-    // MARK: - Header
-
-    private var availabilityHeader: some View {
-        let totalHours = getTotalAvailableHours(localSlots)
-        let daysWithAvailability = getDaysWithAvailability(localSlots)
-
-        return HStack(spacing: 16) {
-            if let currentUser {
-                UserAvatar(user: currentUser, size: 44)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(currentUser?.name ?? "Unknown User")
-                    .font(.headline)
-                Text("Set your availability for the next 2 weeks")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing) {
-                Text("\(Int(totalHours))h")
-                    .font(.title2.bold())
-                    .foregroundStyle(.blue)
-                Text("\(daysWithAvailability) days")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .padding(.horizontal)
-        .padding(.top, 8)
     }
 
     // MARK: - Day Selector Row
@@ -139,48 +102,6 @@ struct AvailabilityView: View {
         .padding(.vertical, 8)
     }
 
-    // MARK: - Quick Action Buttons
-
-    private var quickActionButtons: some View {
-        let currentDay = next14Days[selectedDayIndex]
-        let dateStr = toIsoString(currentDay)
-
-        return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(AvailabilityPreset.allCases, id: \.self) { preset in
-                    Button {
-                        localSlots = localSlots.filter { $0.date != dateStr }
-                        localSlots.append(TimeSlot(date: dateStr, startHour: preset.startHour, endHour: preset.endHour))
-                        let merged = mergeTimeSlots(localSlots)
-                        localSlots = merged
-                        onUpdateAvailability(merged)
-                    } label: {
-                        Text(preset.displayName)
-                            .font(.subheadline)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(preset == .fullDay ? .blue : .secondary)
-                }
-
-                Button {
-                    localSlots = localSlots.filter { $0.date != dateStr }
-                    onUpdateAvailability(localSlots)
-                } label: {
-                    Text("Clear")
-                        .font(.subheadline)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
-            }
-            .padding(.horizontal, 16)
-        }
-        .padding(.vertical, 8)
-    }
-
     // MARK: - Vertical Time Blocks
 
     private var verticalTimeBlocks: some View {
@@ -198,7 +119,8 @@ struct AvailabilityView: View {
                     TimeBlockRow(
                         hour: hour,
                         isAvailable: isAvailable,
-                        isHourMark: isHourMark
+                        isHourMark: isHourMark,
+                        use24HourTime: use24HourTime
                     ) {
                         let newSlots: [TimeSlot]
                         if isAvailable {
@@ -298,12 +220,13 @@ private struct TimeBlockRow: View {
     let hour: Double
     let isAvailable: Bool
     let isHourMark: Bool
+    let use24HourTime: Bool
     let onToggle: () -> Void
 
     var body: some View {
         Button(action: onToggle) {
             HStack {
-                Text(formatHour(hour))
+                Text(formatHour(hour, use24Hour: use24HourTime))
                     .font(.subheadline)
                     .fontWeight(isHourMark ? .medium : .regular)
                     .foregroundStyle(
