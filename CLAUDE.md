@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-XP Scheduler is a meeting scheduling application with four clients (Next.js web, Android, iOS) sharing a FastAPI backend. Users set their availability for the next 2 weeks and schedule meetings based on overlapping available time slots.
+XP Scheduler is a meeting scheduling application with three clients (Next.js web, Android, iOS) sharing a FastAPI backend. Users set their availability for the next 2 weeks and schedule meetings based on overlapping available time slots.
 
 ## Commands
 
@@ -63,7 +63,7 @@ The clients expect the API at `http://localhost:6969` (Next.js: configurable via
 ```
 nextjs-client/
 ├── app/              # Next.js App Router (layout.tsx, page.tsx)
-├── components/       # React components (availability/, calendar/, scheduling/)
+├── components/       # React components (availability/, calendar/, scheduling/, settings/)
 ├── lib/              # API client, Zustand store, utilities
 └── types/            # TypeScript interfaces
 
@@ -73,8 +73,8 @@ android-client/app/src/main/java/com/example/scheduler/
 ├── viewmodel/                # SchedulerViewModel.kt (state management)
 ├── utils/                    # Utils.kt (time formatting, helpers)
 └── ui/
-    ├── components/           # Header.kt
-    ├── screens/              # CalendarScreen, AvailabilityScreen, ScheduleScreen
+    ├── components/           # Header.kt, UserAvatar
+    ├── screens/              # CalendarScreen, AvailabilityScreen, ScheduleScreen, SettingsScreen
     ├── navigation/           # AppNavigation.kt (bottom nav)
     └── theme/                # Color.kt, Theme.kt
 
@@ -86,10 +86,10 @@ ios-client/Scheduler/Scheduler/
 │   ├── APIService.swift      # URLSession HTTP client
 │   └── Components/           # HeaderView, UserAvatar
 ├── Features/
-│   ├── Calendar/             # CalendarView (Week/Day/Agenda modes)
+│   ├── Calendar/             # CalendarView (Day/Month agenda modes)
 │   ├── Availability/         # AvailabilityView (14-day grid editor)
 │   ├── Schedule/             # ScheduleView (4-step meeting wizard)
-│   └── Settings/             # SettingsView
+│   └── Settings/             # SettingsView (profile switcher, 24h toggle)
 ├── ViewModels/               # SchedulerViewModel (@Observable, optimistic updates)
 └── Utilities/                # Utils (time formatting, slot logic, conflict detection)
 
@@ -148,15 +148,23 @@ interface Meeting {
 
 **Android**:
 - Jetpack Compose with Material 3
-- Bottom navigation between Calendar/Availability/Schedule screens
+- Bottom navigation between Calendar/Availability/Schedule/Settings screens
 - Retrofit with Moshi for JSON serialization
 
 **iOS**:
 - SwiftUI with @Observable (requires iOS 17+)
-- TabView for Calendar/Availability/Schedule navigation
+- TabView for Calendar/Availability/Schedule/Settings navigation
 - URLSession with Codable for JSON serialization
 - Views receive data and callbacks as parameters (no environment objects)
 
+### App Navigation
+
+All three clients have 4 tabs:
+1. **Calendar** - Day/Month agenda views showing scheduled meetings
+2. **Availability** - 14-day grid editor for setting available time slots
+3. **Schedule** - Multi-step wizard for creating new meetings
+4. **Settings** - Profile/user switcher, 24-hour time toggle
+
 ### Time Representation
 
-Time is represented in decimal hours across all clients (9.5 = 9:30 AM). Availability uses 30-minute blocks. The calendar supports Week, Day, and Agenda view modes.
+Time is represented in decimal hours across all clients (9.5 = 9:30 AM). Availability uses 30-minute blocks.

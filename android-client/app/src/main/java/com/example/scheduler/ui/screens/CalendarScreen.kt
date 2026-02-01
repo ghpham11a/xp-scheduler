@@ -3,12 +3,10 @@ package com.example.scheduler.ui.screens
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,11 +23,12 @@ import com.example.scheduler.data.User
 import com.example.scheduler.ui.components.UserAvatar
 import com.example.scheduler.utils.*
 import java.time.LocalDate
-import java.time.LocalTime
-import java.time.temporal.ChronoUnit
+import java.time.YearMonth
+import java.time.format.TextStyle
+import java.util.*
 
 enum class CalendarViewMode {
-    WEEK, DAY, AGENDA
+    DAY, MONTH
 }
 
 @Composable
@@ -42,55 +41,92 @@ fun CalendarScreen(
     getUserById: (String) -> User?,
     modifier: Modifier = Modifier
 ) {
-    var viewMode by remember { mutableStateOf(CalendarViewMode.WEEK) }
-    var weekOffset by remember { mutableIntStateOf(0) }
-    var selectedDay by remember { mutableStateOf(LocalDate.now()) }
+    var viewMode by remember { mutableStateOf(CalendarViewMode.DAY) }
+    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var selectedMeeting by remember { mutableStateOf<Meeting?>(null) }
 
     val today = LocalDate.now()
-    val weekStart = getWeekStart(today.plusWeeks(weekOffset.toLong()))
-    val weekDays = (0..6).map { weekStart.plusDays(it.toLong()) }
 
     val currentUserMeetings = meetings.filter {
         it.organizerId == currentUserId || it.participantId == currentUserId
     }
 
+    // Day view meetings
+    val dayMeetings = currentUserMeetings
+        .filter { it.date == selectedDate.toIsoString() }
+        .sortedBy { it.startHour }
+
+    // Month view meetings grouped by date
+    val yearMonth = YearMonth.of(selectedDate.year, selectedDate.month)
+    val monthDates = (1..yearMonth.lengthOfMonth()).map {
+        LocalDate.of(selectedDate.year, selectedDate.month, it).toIsoString()
+    }.toSet()
+
+    val monthMeetingsByDate = currentUserMeetings
+        .filter { it.date in monthDates }
+        .groupBy { it.date }
+        .toSortedMap()
+
+    // Stats
+    val meetingCount = if (viewMode == CalendarViewMode.DAY) {
+        dayMeetings.size
+    } else {
+        monthMeetingsByDate.values.sumOf { it.size }
+    }
+
+    val totalHours = if (viewMode == CalendarViewMode.DAY) {
+        dayMeetings.sumOf { it.endHour - it.startHour }
+    } else {
+        monthMeetingsByDate.values.flatten().sumOf { it.endHour - it.startHour }
+    }
+
     Column(modifier = modifier.fillMaxSize()) {
-        // View mode selector and navigation
+        // Header
         CalendarHeader(
             viewMode = viewMode,
             onViewModeChange = { viewMode = it },
-            weekStart = weekStart,
-            weekDays = weekDays,
-            weekOffset = weekOffset,
-            selectedDay = selectedDay,
-            onWeekOffsetChange = { weekOffset = it },
-            onSelectedDayChange = { selectedDay = it }
+            selectedDate = selectedDate,
+            onDateChange = { selectedDate = it },
+            today = today
         )
 
-        when (viewMode) {
-            CalendarViewMode.WEEK -> WeekView(
-                weekDays = weekDays,
-                currentUserMeetings = currentUserMeetings,
-                showAllHours = showAllHours,
-                getUserById = getUserById,
-                onMeetingClick = { selectedMeeting = it }
-            )
-            CalendarViewMode.DAY -> DayView(
-                selectedDay = selectedDay,
-                weekDays = weekDays,
-                onDaySelected = { selectedDay = it },
-                currentUserMeetings = currentUserMeetings,
-                showAllHours = showAllHours,
-                getUserById = getUserById,
-                onMeetingClick = { selectedMeeting = it }
-            )
-            CalendarViewMode.AGENDA -> AgendaView(
-                weekDays = weekDays,
-                currentUserMeetings = currentUserMeetings,
-                getUserById = getUserById,
-                onMeetingClick = { selectedMeeting = it }
-            )
+        // Content
+        Box(modifier = Modifier.weight(1f)) {
+            when (viewMode) {
+                CalendarViewMode.DAY -> DayAgendaView(
+                    meetings = dayMeetings,
+                    getUserById = getUserById,
+                    onMeetingClick = { selectedMeeting = it }
+                )
+                CalendarViewMode.MONTH -> MonthAgendaView(
+                    meetingsByDate = monthMeetingsByDate,
+                    today = today,
+                    getUserById = getUserById,
+                    onMeetingClick = { selectedMeeting = it }
+                )
+            }
+        }
+
+        // Summary
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                Text(
+                    text = "$meetingCount meeting${if (meetingCount != 1) "s" else ""}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "${totalHours.toInt()}h scheduled",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 
@@ -114,375 +150,232 @@ fun CalendarScreen(
 private fun CalendarHeader(
     viewMode: CalendarViewMode,
     onViewModeChange: (CalendarViewMode) -> Unit,
-    weekStart: LocalDate,
-    weekDays: List<LocalDate>,
-    weekOffset: Int,
-    selectedDay: LocalDate,
-    onWeekOffsetChange: (Int) -> Unit,
-    onSelectedDayChange: (LocalDate) -> Unit
+    selectedDate: LocalDate,
+    onDateChange: (LocalDate) -> Unit,
+    today: LocalDate
 ) {
-    val weekEnd = weekDays.last()
-    val today = LocalDate.now()
+    val isToday = selectedDate == today
 
-    Column {
-        // View mode tabs and navigation
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        // Title and view mode switcher
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Navigation
+            Column {
+                Text(
+                    text = "Calendar",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Your scheduled meetings",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // View mode toggle
+            SingleChoiceSegmentedButtonRow {
+                SegmentedButton(
+                    selected = viewMode == CalendarViewMode.DAY,
+                    onClick = { onViewModeChange(CalendarViewMode.DAY) },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                    icon = { Icon(Icons.Default.CalendarViewDay, null, Modifier.size(16.dp)) }
+                ) {
+                    Text("Day", fontSize = 12.sp)
+                }
+                SegmentedButton(
+                    selected = viewMode == CalendarViewMode.MONTH,
+                    onClick = { onViewModeChange(CalendarViewMode.MONTH) },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                    icon = { Icon(Icons.Default.ViewAgenda, null, Modifier.size(16.dp)) }
+                ) {
+                    Text("Month", fontSize = 12.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Navigation
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { onWeekOffsetChange(weekOffset - 1) }) {
-                    Icon(Icons.Default.ChevronLeft, "Previous week")
+                IconButton(
+                    onClick = {
+                        onDateChange(
+                            if (viewMode == CalendarViewMode.DAY)
+                                selectedDate.minusDays(1)
+                            else
+                                selectedDate.minusMonths(1)
+                        )
+                    }
+                ) {
+                    Icon(Icons.Default.ChevronLeft, "Previous")
                 }
 
                 TextButton(
-                    onClick = {
-                        onWeekOffsetChange(0)
-                        onSelectedDayChange(today)
-                    }
+                    onClick = { onDateChange(today) },
+                    colors = ButtonDefaults.textButtonColors(
+                        containerColor = if (isToday)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            Color.Transparent
+                    )
                 ) {
                     Text("Today")
                 }
 
-                IconButton(onClick = { onWeekOffsetChange(weekOffset + 1) }) {
-                    Icon(Icons.Default.ChevronRight, "Next week")
+                IconButton(
+                    onClick = {
+                        onDateChange(
+                            if (viewMode == CalendarViewMode.DAY)
+                                selectedDate.plusDays(1)
+                            else
+                                selectedDate.plusMonths(1)
+                        )
+                    }
+                ) {
+                    Icon(Icons.Default.ChevronRight, "Next")
                 }
             }
 
-            // Date range display
+            // Date label
             Text(
-                text = "${weekStart.month.name.take(3)} ${weekStart.dayOfMonth} - ${weekEnd.month.name.take(3)} ${weekEnd.dayOfMonth}",
-                style = MaterialTheme.typography.titleMedium
+                text = if (viewMode == CalendarViewMode.DAY) {
+                    "${selectedDate.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())}, " +
+                    "${selectedDate.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} " +
+                    "${selectedDate.dayOfMonth}, ${selectedDate.year}"
+                } else {
+                    "${selectedDate.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${selectedDate.year}"
+                },
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium
             )
         }
 
-        // View mode selector
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        ) {
-            CalendarViewMode.entries.forEachIndexed { index, mode ->
-                SegmentedButton(
-                    selected = viewMode == mode,
-                    onClick = { onViewModeChange(mode) },
-                    shape = SegmentedButtonDefaults.itemShape(
-                        index = index,
-                        count = CalendarViewMode.entries.size
-                    ),
-                    icon = {
-                        when (mode) {
-                            CalendarViewMode.WEEK -> Icon(
-                                Icons.Default.CalendarViewWeek,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            CalendarViewMode.DAY -> Icon(
-                                Icons.Default.CalendarViewDay,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            CalendarViewMode.AGENDA -> Icon(
-                                Icons.AutoMirrored.Filled.List,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                ) {
-                    Text(
-                        text = mode.name.lowercase().replaceFirstChar { it.uppercase() },
-                        fontSize = 12.sp
-                    )
-                }
-            }
-        }
-
-        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+        HorizontalDivider(modifier = Modifier.padding(top = 16.dp))
     }
 }
 
 @Composable
-private fun WeekView(
-    weekDays: List<LocalDate>,
-    currentUserMeetings: List<Meeting>,
-    showAllHours: Boolean,
+private fun DayAgendaView(
+    meetings: List<Meeting>,
     getUserById: (String) -> User?,
     onMeetingClick: (Meeting) -> Unit
 ) {
-    val today = LocalDate.now()
-    val startHour = if (showAllHours) 0 else 6
-    val endHour = if (showAllHours) 24 else 22
-    val hours = (startHour until endHour).toList()
-
-    val scrollState = rememberScrollState()
-
-    Row(modifier = Modifier.fillMaxSize()) {
-        // Time column
-        Column(
-            modifier = Modifier
-                .width(50.dp)
-                .verticalScroll(scrollState)
-        ) {
-            Spacer(modifier = Modifier.height(40.dp)) // Header space
-            hours.forEach { hour ->
-                Box(
-                    modifier = Modifier
-                        .height(60.dp)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.TopEnd
-                ) {
-                    Text(
-                        text = formatHour(hour.toDouble()),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(end = 4.dp)
-                    )
-                }
-            }
-        }
-
-        // Days columns
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .horizontalScroll(rememberScrollState())
-        ) {
-            weekDays.forEach { day ->
-                Column(
-                    modifier = Modifier
-                        .width(100.dp)
-                        .verticalScroll(scrollState)
-                ) {
-                    // Day header
-                    Box(
-                        modifier = Modifier
-                            .height(40.dp)
-                            .fillMaxWidth()
-                            .background(
-                                if (day == today) MaterialTheme.colorScheme.primaryContainer
-                                else Color.Transparent
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = SHORT_DAYS[day.dayOfWeek.value % 7],
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                text = day.dayOfMonth.toString(),
-                                fontWeight = if (day == today) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
-                    }
-
-                    // Time slots
-                    Box(modifier = Modifier.height((hours.size * 60).dp)) {
-                        // Grid lines
-                        hours.forEachIndexed { index, _ ->
-                            HorizontalDivider(
-                                modifier = Modifier.offset(y = (index * 60).dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                            )
-                        }
-
-                        // Meetings
-                        currentUserMeetings
-                            .filter { it.date == day.toIsoString() }
-                            .forEach { meeting ->
-                                val top = ((meeting.startHour - startHour) * 60).dp
-                                val height = ((meeting.endHour - meeting.startHour) * 60).dp
-                                if (meeting.startHour >= startHour && meeting.endHour <= endHour) {
-                                    val otherUserId = if (meeting.organizerId == currentUserMeetings.firstOrNull()?.let {
-                                            if (it.organizerId == meeting.organizerId) it.organizerId else it.participantId
-                                        } ?: meeting.organizerId
-                                    ) meeting.organizerId else meeting.participantId
-
-                                    val user = getUserById(
-                                        if (meeting.organizerId != currentUserMeetings.firstOrNull()?.organizerId?.takeIf {
-                                                currentUserMeetings.any { m -> m.organizerId == it || m.participantId == it }
-                                            }) meeting.organizerId else meeting.participantId
-                                    )
-                                    val color = try {
-                                        Color(android.graphics.Color.parseColor(user?.avatarColor ?: "#3B82F6"))
-                                    } catch (e: Exception) {
-                                        MaterialTheme.colorScheme.primary
-                                    }
-
-                                    Card(
-                                        modifier = Modifier
-                                            .offset(y = top)
-                                            .fillMaxWidth()
-                                            .height(height)
-                                            .padding(1.dp)
-                                            .clickable { onMeetingClick(meeting) },
-                                        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.8f)),
-                                        shape = RoundedCornerShape(4.dp)
-                                    ) {
-                                        Text(
-                                            text = meeting.title,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = Color.White,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.padding(4.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                        // Current time indicator
-                        if (day == today) {
-                            val now = LocalTime.now()
-                            val currentHour = now.hour + now.minute / 60.0
-                            if (currentHour >= startHour && currentHour <= endHour) {
-                                val top = ((currentHour - startHour) * 60).dp
-                                Box(
-                                    modifier = Modifier
-                                        .offset(y = top)
-                                        .fillMaxWidth()
-                                        .height(2.dp)
-                                        .background(Color.Red)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DayView(
-    selectedDay: LocalDate,
-    weekDays: List<LocalDate>,
-    onDaySelected: (LocalDate) -> Unit,
-    currentUserMeetings: List<Meeting>,
-    showAllHours: Boolean,
-    getUserById: (String) -> User?,
-    onMeetingClick: (Meeting) -> Unit
-) {
-    val today = LocalDate.now()
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Day selector
-        LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp)
-        ) {
-            items(weekDays) { day ->
-                FilterChip(
-                    selected = day == selectedDay,
-                    onClick = { onDaySelected(day) },
-                    label = {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(SHORT_DAYS[day.dayOfWeek.value % 7])
-                            Text(
-                                text = day.dayOfMonth.toString(),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = if (day == today)
-                            MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.secondaryContainer
-                    )
-                )
-            }
-        }
-
-        // Single day grid
-        WeekView(
-            weekDays = listOf(selectedDay),
-            currentUserMeetings = currentUserMeetings,
-            showAllHours = showAllHours,
-            getUserById = getUserById,
-            onMeetingClick = onMeetingClick
-        )
-    }
-}
-
-@Composable
-private fun AgendaView(
-    weekDays: List<LocalDate>,
-    currentUserMeetings: List<Meeting>,
-    getUserById: (String) -> User?,
-    onMeetingClick: (Meeting) -> Unit
-) {
-    val meetingsByDay = currentUserMeetings
-        .filter { meeting -> weekDays.any { it.toIsoString() == meeting.date } }
-        .groupBy { it.date }
-        .toSortedMap()
-
-    if (meetingsByDay.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    Icons.Default.EventBusy,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "No meetings this week",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+    if (meetings.isEmpty()) {
+        EmptyState(message = "No meetings scheduled for this day")
     } else {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.fillMaxSize()
         ) {
-            meetingsByDay.forEach { (dateStr, meetings) ->
-                val date = dateStr.toLocalDate()
+            items(meetings, key = { it.id }) { meeting ->
+                MeetingRow(
+                    meeting = meeting,
+                    getUserById = getUserById,
+                    onClick = { onMeetingClick(meeting) }
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            }
+        }
+    }
+}
 
-                item(key = dateStr) {
-                    Column {
-                        // Day header
+@Composable
+private fun MonthAgendaView(
+    meetingsByDate: Map<String, List<Meeting>>,
+    today: LocalDate,
+    getUserById: (String) -> User?,
+    onMeetingClick: (Meeting) -> Unit
+) {
+    if (meetingsByDate.isEmpty()) {
+        EmptyState(message = "No meetings scheduled for this month")
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            meetingsByDate.forEach { (dateStr, dayMeetings) ->
+                val date = dateStr.toLocalDate()
+                val isToday = date == today
+
+                // Date header
+                item(key = "header_$dateStr") {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .padding(12.dp),
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (isToday) {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text(
+                                            text = "Today",
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "${date.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())} ${date.dayOfMonth}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                             Text(
-                                text = formatDateFull(date),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        // Meetings for this day
-                        meetings.sortedBy { it.startHour }.forEach { meeting ->
-                            MeetingCard(
-                                meeting = meeting,
-                                getUserById = getUserById,
-                                onClick = { onMeetingClick(meeting) }
+                                text = "${dayMeetings.size} meeting${if (dayMeetings.size != 1) "s" else ""}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
+                }
+
+                // Meetings for this day
+                items(dayMeetings.sortedBy { it.startHour }, key = { it.id }) { meeting ->
+                    Surface(
+                        color = if (isToday)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+                        else
+                            Color.Transparent
+                    ) {
+                        MeetingRow(
+                            meeting = meeting,
+                            getUserById = getUserById,
+                            onClick = { onMeetingClick(meeting) }
+                        )
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                 }
             }
         }
@@ -490,7 +383,40 @@ private fun AgendaView(
 }
 
 @Composable
-private fun MeetingCard(
+private fun EmptyState(message: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = CircleShape,
+                modifier = Modifier.size(64.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(
+                        Icons.Default.CalendarMonth,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun MeetingRow(
     meeting: Meeting,
     getUserById: (String) -> User?,
     onClick: () -> Unit
@@ -501,46 +427,80 @@ private fun MeetingCard(
     } catch (e: Exception) {
         MaterialTheme.colorScheme.primary
     }
+    val duration = meeting.endHour - meeting.startHour
 
-    Card(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+            .clickable(onClick = onClick)
+            .padding(0.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        // Color bar
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .height(72.dp)
+                .background(color)
+        )
+
+        // Time
+        Column(
+            modifier = Modifier
+                .width(64.dp)
+                .padding(horizontal = 12.dp),
+            horizontalAlignment = Alignment.End
         ) {
-            // Color indicator
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .height(48.dp)
-                    .background(color, RoundedCornerShape(2.dp))
+            Text(
+                text = formatHour(meeting.startHour),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
             )
+            Text(
+                text = "${duration.toInt()}h",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = meeting.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = formatTimeRange(meeting.startHour, meeting.endHour),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            otherUser?.let {
-                UserAvatar(user = it, size = 32)
+        // Meeting info
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 12.dp)
+        ) {
+            Text(
+                text = meeting.title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                otherUser?.let { user ->
+                    UserAvatar(user = user, size = 20)
+                    Text(
+                        text = user.name,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
+
+        // Arrow
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = null,
+            modifier = Modifier.padding(end = 12.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -554,50 +514,82 @@ private fun MeetingDetailsDialog(
 ) {
     val organizer = getUserById(meeting.organizerId)
     val participant = getUserById(meeting.participantId)
+    val otherUser = if (meeting.organizerId == currentUserId) participant else organizer
     val isOrganizer = meeting.organizerId == currentUserId
+
+    val color = try {
+        Color(android.graphics.Color.parseColor(otherUser?.avatarColor ?: "#3B82F6"))
+    } catch (e: Exception) {
+        MaterialTheme.colorScheme.primary
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(meeting.title) },
+        title = {
+            Surface(
+                color = color,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = meeting.title,
+                    modifier = Modifier.padding(16.dp),
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Other user
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(Icons.Default.Schedule, contentDescription = null)
-                    Text(formatTimeRange(meeting.startHour, meeting.endHour))
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(Icons.Default.CalendarToday, contentDescription = null)
-                    Text(formatDateFull(meeting.date.toLocalDate()))
+                    otherUser?.let { user ->
+                        UserAvatar(user = user, size = 40)
+                        Column {
+                            Text(
+                                text = if (isOrganizer) "Meeting with" else "Organized by",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = user.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
 
                 HorizontalDivider()
 
-                Text("Organizer", style = MaterialTheme.typography.labelMedium)
-                organizer?.let {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // Date and time
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = CircleShape,
+                        modifier = Modifier.size(40.dp)
                     ) {
-                        UserAvatar(user = it, size = 32)
-                        Text(it.name)
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Icon(Icons.Default.CalendarToday, contentDescription = null)
+                        }
                     }
-                }
-
-                Text("Participant", style = MaterialTheme.typography.labelMedium)
-                participant?.let {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        UserAvatar(user = it, size = 32)
-                        Text(it.name)
+                    Column {
+                        Text(
+                            text = formatDateFull(meeting.date.toLocalDate()),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "${formatTimeRange(meeting.startHour, meeting.endHour)} (${(meeting.endHour - meeting.startHour).toInt()}h)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
