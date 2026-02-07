@@ -1,10 +1,12 @@
 import SwiftUI
 
 struct AvailabilityView: View {
-    let currentUser: User?
-    let availabilitySlots: [TimeSlot]
-    let use24HourTime: Bool
-    let onUpdateAvailability: ([TimeSlot]) -> Void
+
+    @State private var viewModel: ViewModel
+
+    init(viewModel: ViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
 
     @State private var localSlots: [TimeSlot] = []
     @State private var selectedDayIndex: Int = 0
@@ -18,8 +20,8 @@ struct AvailabilityView: View {
             verticalTimeBlocks
             legend
         }
-        .onAppear { localSlots = availabilitySlots }
-        .onChange(of: availabilitySlots) { _, newValue in localSlots = newValue }
+        .onAppear { localSlots = viewModel.availabilitySlots }
+        .onChange(of: viewModel.availabilitySlots) { _, newValue in localSlots = newValue }
     }
 
     // MARK: - Day Selector Row
@@ -120,7 +122,7 @@ struct AvailabilityView: View {
                         hour: hour,
                         isAvailable: isAvailable,
                         isHourMark: isHourMark,
-                        use24HourTime: use24HourTime
+                        use24HourTime: viewModel.use24HourTime
                     ) {
                         let newSlots: [TimeSlot]
                         if isAvailable {
@@ -130,7 +132,7 @@ struct AvailabilityView: View {
                         }
                         let merged = mergeTimeSlots(newSlots)
                         localSlots = localSlots.filter { $0.date != dateStr } + merged
-                        onUpdateAvailability(mergeTimeSlots(localSlots))
+                        viewModel.setAvailability(userId: viewModel.currentUser?.id ?? "", slots: mergeTimeSlots(localSlots))
                     }
 
                     if hour < 23.5 {

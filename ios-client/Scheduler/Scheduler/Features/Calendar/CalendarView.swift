@@ -1,13 +1,12 @@
 import SwiftUI
 
 struct CalendarView: View {
-    let currentUserId: String
-    let users: [User]
-    let availabilities: [Availability]
-    let meetings: [Meeting]
-    let use24HourTime: Bool
-    let onCancelMeeting: (String) -> Void
-    let userById: (String) -> User?
+
+    @State private var viewModel: ViewModel
+
+    init(viewModel: ViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
 
     @State private var selectedDayIndex: Int = 0
     @State private var selectedMeeting: Meeting?
@@ -17,7 +16,7 @@ struct CalendarView: View {
     private let weekDays = getNextDays(7)
 
     private var currentUserMeetings: [Meeting] {
-        getMeetingsForUser(meetings, userId: currentUserId)
+        getMeetingsForUser(viewModel.meetings, userId: viewModel.currentUserId)
     }
 
     private var selectedDay: Date {
@@ -38,8 +37,8 @@ struct CalendarView: View {
                 MonthAgendaView(
                     monthOffset: monthOffset,
                     meetings: currentUserMeetings,
-                    use24HourTime: use24HourTime,
-                    userById: userById,
+                    use24HourTime: viewModel.use24HourTime,
+                    userById: { viewModel.userById($0) },
                     onMeetingTap: { selectedMeeting = $0 }
                 )
             } else {
@@ -51,11 +50,11 @@ struct CalendarView: View {
         .sheet(item: $selectedMeeting) { meeting in
             MeetingDetailSheet(
                 meeting: meeting,
-                currentUserId: currentUserId,
-                use24HourTime: use24HourTime,
-                userById: userById,
+                currentUserId: viewModel.currentUserId,
+                use24HourTime: viewModel.use24HourTime,
+                userById: { viewModel.userById($0) },
                 onCancel: {
-                    onCancelMeeting(meeting.id)
+                    viewModel.cancelMeeting(meeting.id)
                     selectedMeeting = nil
                 },
                 onDismiss: { selectedMeeting = nil }
@@ -171,8 +170,8 @@ struct CalendarView: View {
                     ForEach(selectedDayMeetings) { meeting in
                         MeetingRow(
                             meeting: meeting,
-                            use24HourTime: use24HourTime,
-                            userById: userById,
+                            use24HourTime: viewModel.use24HourTime,
+                            userById: { viewModel.userById($0) },
                             onTap: { selectedMeeting = meeting }
                         )
                     }
