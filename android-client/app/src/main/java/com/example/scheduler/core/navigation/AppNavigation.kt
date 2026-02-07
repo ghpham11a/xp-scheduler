@@ -1,17 +1,20 @@
-package com.example.scheduler.ui.navigation
+package com.example.scheduler.core.navigation
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.example.scheduler.ui.components.Header
-import com.example.scheduler.ui.screens.AvailabilityScreen
-import com.example.scheduler.ui.screens.CalendarScreen
-import com.example.scheduler.ui.screens.ScheduleScreen
-import com.example.scheduler.ui.screens.SettingsScreen
+import androidx.compose.ui.unit.dp
+import com.example.scheduler.data.models.User
+import com.example.scheduler.shared.components.Header
+import com.example.scheduler.features.availability.AvailabilityScreen
+import com.example.scheduler.features.calendar.CalendarScreen
+import com.example.scheduler.features.schedule.ScheduleScreen
+import com.example.scheduler.features.settings.SettingsScreen
 import com.example.scheduler.viewmodel.SchedulerState
 
 enum class AppScreen(
@@ -27,24 +30,11 @@ enum class AppScreen(
 @Composable
 fun MainScreen(
     state: SchedulerState,
-    onUserSelected: (String) -> Unit,
-    onUpdateAvailability: (String, List<com.example.scheduler.data.TimeSlot>) -> Unit,
-    onScheduleMeeting: (
-        organizerId: String,
-        participantId: String,
-        date: String,
-        startHour: Double,
-        endHour: Double,
-        title: String
-    ) -> Unit,
-    onCancelMeeting: (String) -> Unit,
-    getUserById: (String) -> com.example.scheduler.data.User?
+    onUserSelected: (String) -> Unit
 ) {
     var currentScreen by remember { mutableStateOf(AppScreen.CALENDAR) }
-    var showAllHours by remember { mutableStateOf(false) }
 
     val currentUser = state.users.find { it.id == state.currentUserId }
-    val currentUserAvailability = state.availabilities.find { it.userId == state.currentUserId }
 
     Scaffold(
         topBar = {
@@ -81,35 +71,18 @@ fun MainScreen(
                 else -> {
                     when (currentScreen) {
                         AppScreen.CALENDAR -> CalendarScreen(
-                            currentUserId = state.currentUserId,
-                            users = state.users,
-                            meetings = state.meetings,
-                            showAllHours = showAllHours,
-                            onCancelMeeting = onCancelMeeting,
-                            getUserById = getUserById
+                            currentUserId = state.currentUserId
                         )
                         AppScreen.AVAILABILITY -> AvailabilityScreen(
-                            currentUser = currentUser,
-                            availabilitySlots = currentUserAvailability?.slots ?: emptyList(),
-                            onUpdateAvailability = { slots ->
-                                onUpdateAvailability(state.currentUserId, slots)
-                            }
+                            currentUserId = state.currentUserId,
+                            currentUser = currentUser
                         )
                         AppScreen.SCHEDULE -> ScheduleScreen(
-                            currentUserId = state.currentUserId,
-                            users = state.users,
-                            availabilities = state.availabilities,
-                            meetings = state.meetings,
-                            onScheduleMeeting = onScheduleMeeting,
-                            onCancelMeeting = onCancelMeeting,
-                            getUserById = getUserById
+                            currentUserId = state.currentUserId
                         )
                         AppScreen.SETTINGS -> SettingsScreen(
-                            currentUser = currentUser,
-                            users = state.users,
-                            showAllHours = showAllHours,
-                            onUserSelected = onUserSelected,
-                            onShowAllHoursChanged = { showAllHours = it }
+                            currentUserId = state.currentUserId,
+                            onUserChanged = onUserSelected
                         )
                     }
                 }
@@ -122,10 +95,10 @@ fun MainScreen(
 private fun LoadingScreen() {
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = androidx.compose.ui.Alignment.Center
+        contentAlignment = Alignment.Center
     ) {
         Column(
-            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             CircularProgressIndicator()
@@ -141,10 +114,10 @@ private fun ErrorScreen(
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = androidx.compose.ui.Alignment.Center
+        contentAlignment = Alignment.Center
     ) {
         Column(
-            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(

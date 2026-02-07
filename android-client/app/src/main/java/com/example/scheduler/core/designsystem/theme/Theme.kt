@@ -1,4 +1,4 @@
-package com.example.scheduler.ui.theme
+package com.example.scheduler.core.designsystem.theme
 
 import android.app.Activity
 import android.os.Build

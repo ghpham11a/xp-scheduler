@@ -1,4 +1,4 @@
-package com.example.scheduler.ui.theme
+package com.example.scheduler.core.designsystem.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

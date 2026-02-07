@@ -21,4 +21,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "Scheduler"
 include(":app")
- 

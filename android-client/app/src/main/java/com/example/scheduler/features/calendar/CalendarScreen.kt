@@ -1,4 +1,4 @@
-package com.example.scheduler.ui.screens
+package com.example.scheduler.features.calendar
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -12,15 +12,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.scheduler.data.Meeting
-import com.example.scheduler.data.User
-import com.example.scheduler.ui.components.UserAvatar
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.scheduler.data.models.Meeting
+import com.example.scheduler.data.models.User
+import com.example.scheduler.shared.components.UserAvatar
 import com.example.scheduler.utils.*
 import java.time.LocalDate
 import java.time.YearMonth
@@ -34,20 +34,23 @@ enum class CalendarViewMode {
 @Composable
 fun CalendarScreen(
     currentUserId: String,
-    users: List<User>,
-    meetings: List<Meeting>,
-    showAllHours: Boolean,
-    onCancelMeeting: (String) -> Unit,
-    getUserById: (String) -> User?,
+    viewModel: CalendarViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
+    val state by viewModel.state.collectAsState()
+
+    // Update ViewModel with current user ID when it changes
+    LaunchedEffect(currentUserId) {
+        viewModel.setCurrentUserId(currentUserId)
+    }
+
     var viewMode by remember { mutableStateOf(CalendarViewMode.DAY) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var selectedMeeting by remember { mutableStateOf<Meeting?>(null) }
 
     val today = LocalDate.now()
 
-    val currentUserMeetings = meetings.filter {
+    val currentUserMeetings = state.meetings.filter {
         it.organizerId == currentUserId || it.participantId == currentUserId
     }
 
@@ -95,13 +98,13 @@ fun CalendarScreen(
             when (viewMode) {
                 CalendarViewMode.DAY -> DayAgendaView(
                     meetings = dayMeetings,
-                    getUserById = getUserById,
+                    getUserById = { viewModel.getUserById(it) },
                     onMeetingClick = { selectedMeeting = it }
                 )
                 CalendarViewMode.MONTH -> MonthAgendaView(
                     meetingsByDate = monthMeetingsByDate,
                     today = today,
-                    getUserById = getUserById,
+                    getUserById = { viewModel.getUserById(it) },
                     onMeetingClick = { selectedMeeting = it }
                 )
             }
@@ -134,11 +137,11 @@ fun CalendarScreen(
     selectedMeeting?.let { meeting ->
         MeetingDetailsDialog(
             meeting = meeting,
-            getUserById = getUserById,
+            getUserById = { viewModel.getUserById(it) },
             currentUserId = currentUserId,
             onDismiss = { selectedMeeting = null },
             onCancel = {
-                onCancelMeeting(meeting.id)
+                viewModel.cancelMeeting(meeting.id)
                 selectedMeeting = null
             }
         )

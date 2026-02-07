@@ -1,7 +1,8 @@
-package com.example.scheduler.ui.screens
+package com.example.scheduler.features.availability
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -19,20 +20,31 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.scheduler.data.TimeSlot
-import com.example.scheduler.data.User
-import com.example.scheduler.ui.components.UserAvatar
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.scheduler.data.models.TimeSlot
+import com.example.scheduler.data.models.User
+import com.example.scheduler.shared.components.UserAvatar
 import com.example.scheduler.utils.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 @Composable
 fun AvailabilityScreen(
+    currentUserId: String,
     currentUser: User?,
-    availabilitySlots: List<TimeSlot>,
-    onUpdateAvailability: (List<TimeSlot>) -> Unit,
+    viewModel: AvailabilityViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
+    val state by viewModel.state.collectAsState()
+
+    // Update ViewModel with current user info when it changes
+    LaunchedEffect(currentUserId, currentUser) {
+        viewModel.setCurrentUserId(currentUserId)
+        viewModel.setCurrentUser(currentUser)
+    }
+
+    val availabilitySlots = viewModel.getCurrentUserAvailability()
+
     val next14Days = remember { getNextDays(14) }
     var localSlots by remember(availabilitySlots) { mutableStateOf(availabilitySlots) }
     var selectedDayIndex by remember { mutableStateOf(0) }
@@ -50,7 +62,7 @@ fun AvailabilityScreen(
     Column(modifier = modifier.fillMaxSize()) {
         // Header with user info
         AvailabilityHeader(
-            currentUser = currentUser,
+            currentUser = state.currentUser ?: currentUser,
             totalHours = totalHours,
             daysWithAvailability = daysWithAvailability
         )
@@ -99,12 +111,12 @@ fun AvailabilityScreen(
                 val dateStr = currentDay.toIsoString()
                 localSlots = localSlots.filter { it.date != dateStr } +
                         TimeSlot(dateStr, preset.startHour, preset.endHour)
-                onUpdateAvailability(mergeTimeSlots(localSlots))
+                viewModel.setAvailability(currentUserId, mergeTimeSlots(localSlots))
             },
             onClear = {
                 val dateStr = currentDay.toIsoString()
                 localSlots = localSlots.filter { it.date != dateStr }
-                onUpdateAvailability(mergeTimeSlots(localSlots))
+                viewModel.setAvailability(currentUserId, mergeTimeSlots(localSlots))
             }
         )
 
@@ -115,7 +127,7 @@ fun AvailabilityScreen(
             onSlotsChanged = { newSlots ->
                 val dateStr = currentDay.toIsoString()
                 localSlots = localSlots.filter { it.date != dateStr } + newSlots
-                onUpdateAvailability(mergeTimeSlots(localSlots))
+                viewModel.setAvailability(currentUserId, mergeTimeSlots(localSlots))
             }
         )
     }
@@ -176,7 +188,7 @@ private fun DaySelectorRow(
     days: List<LocalDate>,
     selectedIndex: Int,
     slots: List<TimeSlot>,
-    listState: androidx.compose.foundation.lazy.LazyListState,
+    listState: LazyListState,
     onDaySelected: (Int) -> Unit
 ) {
     LazyRow(
@@ -383,7 +395,6 @@ private fun VerticalTimeBlocks(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .weight(1f)
     ) {
         Column(
             modifier = Modifier

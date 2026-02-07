@@ -1,4 +1,4 @@
-package com.example.scheduler.viewmodel
+package com.example.scheduler.features.settings
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -6,54 +6,49 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.scheduler.data.models.Availability
-import com.example.scheduler.data.models.Meeting
 import com.example.scheduler.data.models.User
 import com.example.scheduler.data.repositories.SchedulerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * Root state container for app-wide shared state.
- * Each screen has its own ViewModel for screen-specific operations.
- */
-data class SchedulerState(
-    val currentUserId: String = "",
+data class SettingsState(
     val users: List<User> = emptyList(),
-    val availabilities: List<Availability> = emptyList(),
-    val meetings: List<Meeting> = emptyList(),
+    val currentUserId: String = "",
+    val currentUser: User? = null,
+    val showAllHours: Boolean = false,
     val isLoading: Boolean = true,
     val error: String? = null
 )
 
-/**
- * Root ViewModel that manages shared app state.
- * Provides currentUserId and users list to child screens.
- * Individual screens use their own ViewModels for screen-specific operations.
- */
 @HiltViewModel
-class SchedulerViewModel @Inject constructor(
+class SettingsViewModel @Inject constructor(
     private val dataStore: DataStore<Preferences>,
     private val repository: SchedulerRepository
 ) : ViewModel() {
-    private val _state = MutableStateFlow(SchedulerState())
-    val state: StateFlow<SchedulerState> = _state.asStateFlow()
+    private val _state = MutableStateFlow(SettingsState())
+    val state: StateFlow<SettingsState> = _state.asStateFlow()
 
     private val CURRENT_USER_KEY = stringPreferencesKey("current_user_id")
+    private val SHOW_ALL_HOURS_KEY = stringPreferencesKey("show_all_hours")
 
     init {
-        loadPersistedUserId()
+        loadPersistedSettings()
         fetchData()
     }
 
-    private fun loadPersistedUserId() {
+    private fun loadPersistedSettings() {
         viewModelScope.launch {
             dataStore.data.first().let { prefs ->
-                val userId = prefs[CURRENT_USER_KEY]
-                if (userId != null) {
-                    _state.update { it.copy(currentUserId = userId) }
+                val userId = prefs[CURRENT_USER_KEY] ?: ""
+                val showAllHours = prefs[SHOW_ALL_HOURS_KEY]?.toBoolean() ?: false
+                _state.update {
+                    it.copy(currentUserId = userId, showAllHours = showAllHours)
                 }
             }
         }
@@ -64,40 +59,37 @@ class SchedulerViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true, error = null) }
             repository.fetchAllData()
                 .onSuccess { data ->
-                    _state.update { current ->
-                        val currentUserId = if (current.currentUserId.isEmpty() && data.users.isNotEmpty()) {
-                            data.users.first().id
-                        } else {
-                            current.currentUserId
-                        }
-
-                        current.copy(
+                    val currentUserId = _state.value.currentUserId.ifEmpty {
+                        data.users.firstOrNull()?.id ?: ""
+                    }
+                    _state.update {
+                        it.copy(
                             users = data.users,
-                            availabilities = data.availabilities,
-                            meetings = data.meetings,
                             currentUserId = currentUserId,
+                            currentUser = data.users.find { user -> user.id == currentUserId },
                             isLoading = false
                         )
                     }
-
-                    // Persist the current user ID
+                    // Persist the current user ID if it was empty
                     if (_state.value.currentUserId.isNotEmpty()) {
                         persistCurrentUserId(_state.value.currentUserId)
                     }
                 }
                 .onFailure { e ->
                     _state.update {
-                        it.copy(
-                            isLoading = false,
-                            error = e.message ?: "Unknown error"
-                        )
+                        it.copy(isLoading = false, error = e.message ?: "Unknown error")
                     }
                 }
         }
     }
 
     fun setCurrentUser(userId: String) {
-        _state.update { it.copy(currentUserId = userId) }
+        _state.update { current ->
+            current.copy(
+                currentUserId = userId,
+                currentUser = current.users.find { it.id == userId }
+            )
+        }
         viewModelScope.launch {
             persistCurrentUserId(userId)
         }
@@ -109,7 +101,12 @@ class SchedulerViewModel @Inject constructor(
         }
     }
 
-    fun clearError() {
-        _state.update { it.copy(error = null) }
+    fun setShowAllHours(show: Boolean) {
+        _state.update { it.copy(showAllHours = show) }
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                prefs[SHOW_ALL_HOURS_KEY] = show.toString()
+            }
+        }
     }
 }

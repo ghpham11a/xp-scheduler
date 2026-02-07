@@ -1,8 +1,7 @@
-package com.example.scheduler.ui.components
+package com.example.scheduler.shared.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,7 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.scheduler.data.User
+import com.example.scheduler.data.models.User
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,32 +65,4 @@ fun Header(
         },
         modifier = modifier
     )
-}
-
-@Composable
-fun UserAvatar(
-    user: User,
-    size: Int,
-    modifier: Modifier = Modifier
-) {
-    val backgroundColor = try {
-        Color(android.graphics.Color.parseColor(user.avatarColor))
-    } catch (e: Exception) {
-        MaterialTheme.colorScheme.primary
-    }
-
-    Box(
-        modifier = modifier
-            .size(size.dp)
-            .clip(CircleShape)
-            .background(backgroundColor),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = user.name.firstOrNull()?.uppercase() ?: "?",
-            color = Color.White,
-            fontWeight = FontWeight.Medium,
-            fontSize = (size / 2).sp
-        )
-    }
 }

@@ -1,11 +1,13 @@
 package com.example.scheduler.utils
 
-import com.example.scheduler.data.TimeSlot
+import com.example.scheduler.data.models.Meeting
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
+
+import com.example.scheduler.data.models.TimeSlot
 
 // Day names
 val DAYS = listOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
@@ -107,7 +109,7 @@ fun hasConflict(
     date: String,
     startHour: Double,
     endHour: Double,
-    meetings: List<com.example.scheduler.data.Meeting>,
+    meetings: List<Meeting>,
     userId: String
 ): Boolean {
     return meetings.any { meeting ->

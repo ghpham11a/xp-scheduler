@@ -1,10 +1,15 @@
-package com.example.scheduler.data
+package com.example.scheduler.data.networking
 
+import com.example.scheduler.data.models.Availability
+import com.example.scheduler.data.models.CreateMeetingRequest
+import com.example.scheduler.data.models.DeleteMeetingResponse
+import com.example.scheduler.data.models.Meeting
+import com.example.scheduler.data.models.TimeSlot
+import com.example.scheduler.data.models.User
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.*

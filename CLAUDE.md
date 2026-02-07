@@ -50,6 +50,11 @@ uvicorn app.main:app --host 0.0.0.0 --port 6969 --reload
 
 The clients expect the API at `http://localhost:6969` (Next.js: configurable via `NEXT_PUBLIC_API_URL`, Android emulator uses `10.0.2.2:6969`, iOS simulator uses `localhost:6969`).
 
+### Tunneling
+```
+ngrok http --hostname=<your-hostname>.ngrok.io <your-port>
+```
+
 ## Architecture
 
 ### Tech Stack

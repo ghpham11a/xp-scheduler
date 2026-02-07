@@ -1,4 +1,4 @@
-package com.example.scheduler.ui.screens
+package com.example.scheduler.features.schedule
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -18,13 +18,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.scheduler.data.Availability
-import com.example.scheduler.data.Meeting
-import com.example.scheduler.data.TimeSlot
-import com.example.scheduler.data.User
-import com.example.scheduler.ui.components.UserAvatar
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.scheduler.data.models.Availability
+import com.example.scheduler.data.models.Meeting
+import com.example.scheduler.data.models.TimeSlot
+import com.example.scheduler.data.models.User
+import com.example.scheduler.shared.components.UserAvatar
 import com.example.scheduler.utils.*
-import java.time.LocalDate
 
 enum class ScheduleStep {
     SELECT_PARTICIPANT,
@@ -36,29 +36,24 @@ enum class ScheduleStep {
 @Composable
 fun ScheduleScreen(
     currentUserId: String,
-    users: List<User>,
-    availabilities: List<Availability>,
-    meetings: List<Meeting>,
-    onScheduleMeeting: (
-        organizerId: String,
-        participantId: String,
-        date: String,
-        startHour: Double,
-        endHour: Double,
-        title: String
-    ) -> Unit,
-    onCancelMeeting: (String) -> Unit,
-    getUserById: (String) -> User?,
+    viewModel: ScheduleViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
+    val state by viewModel.state.collectAsState()
+
+    // Update ViewModel with current user ID when it changes
+    LaunchedEffect(currentUserId) {
+        viewModel.setCurrentUserId(currentUserId)
+    }
+
     var currentStep by remember { mutableStateOf(ScheduleStep.SELECT_PARTICIPANT) }
     var selectedParticipant by remember { mutableStateOf<User?>(null) }
     var selectedDuration by remember { mutableStateOf<MeetingDuration?>(null) }
     var selectedSlot by remember { mutableStateOf<Pair<String, Double>?>(null) } // date, startHour
     var meetingTitle by remember { mutableStateOf("") }
 
-    val otherUsers = users.filter { it.id != currentUserId }
-    val currentUserMeetings = meetings.filter {
+    val otherUsers = state.users.filter { it.id != currentUserId }
+    val currentUserMeetings = state.meetings.filter {
         it.organizerId == currentUserId || it.participantId == currentUserId
     }
 
@@ -90,7 +85,7 @@ fun ScheduleScreen(
         when (currentStep) {
             ScheduleStep.SELECT_PARTICIPANT -> ParticipantSelection(
                 otherUsers = otherUsers,
-                availabilities = availabilities,
+                availabilities = state.availabilities,
                 onSelect = { user ->
                     selectedParticipant = user
                     currentStep = ScheduleStep.SELECT_DURATION
@@ -108,8 +103,8 @@ fun ScheduleScreen(
                 currentUserId = currentUserId,
                 participant = selectedParticipant!!,
                 duration = selectedDuration!!,
-                availabilities = availabilities,
-                meetings = meetings,
+                availabilities = state.availabilities,
+                meetings = state.meetings,
                 onSelect = { date, startHour ->
                     selectedSlot = date to startHour
                     currentStep = ScheduleStep.CONFIRM
@@ -124,13 +119,13 @@ fun ScheduleScreen(
                 meetingTitle = meetingTitle,
                 onTitleChange = { meetingTitle = it },
                 onConfirm = {
-                    onScheduleMeeting(
-                        currentUserId,
-                        selectedParticipant!!.id,
-                        selectedSlot!!.first,
-                        selectedSlot!!.second,
-                        selectedSlot!!.second + selectedDuration!!.hours,
-                        meetingTitle
+                    viewModel.addMeeting(
+                        organizerId = currentUserId,
+                        participantId = selectedParticipant!!.id,
+                        date = selectedSlot!!.first,
+                        startHour = selectedSlot!!.second,
+                        endHour = selectedSlot!!.second + selectedDuration!!.hours,
+                        title = meetingTitle
                     )
                     resetWizard()
                 }
@@ -143,8 +138,8 @@ fun ScheduleScreen(
             MeetingListSection(
                 meetings = currentUserMeetings,
                 currentUserId = currentUserId,
-                getUserById = getUserById,
-                onCancelMeeting = onCancelMeeting
+                getUserById = { viewModel.getUserById(it) },
+                onCancelMeeting = { viewModel.cancelMeeting(it) }
             )
         }
     }

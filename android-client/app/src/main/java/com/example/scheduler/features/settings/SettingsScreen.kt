@@ -1,35 +1,36 @@
-package com.example.scheduler.ui.screens
+package com.example.scheduler.features.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.scheduler.data.User
-import com.example.scheduler.ui.components.UserAvatar
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.scheduler.data.models.User
+import com.example.scheduler.shared.components.UserAvatar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    currentUser: User?,
-    users: List<User>,
-    showAllHours: Boolean,
-    onUserSelected: (String) -> Unit,
-    onShowAllHoursChanged: (Boolean) -> Unit,
+    currentUserId: String,
+    onUserChanged: (String) -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
+    val state by viewModel.state.collectAsState()
+
+    // Sync with parent when settings change
+    LaunchedEffect(state.currentUserId) {
+        if (state.currentUserId.isNotEmpty() && state.currentUserId != currentUserId) {
+            onUserChanged(state.currentUserId)
+        }
+    }
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp)
@@ -44,7 +45,7 @@ fun SettingsScreen(
             )
         }
 
-        items(users) { user ->
+        items(state.users) { user ->
             ListItem(
                 headlineContent = { Text(user.name) },
                 supportingContent = { Text(user.email) },
@@ -52,7 +53,7 @@ fun SettingsScreen(
                     UserAvatar(user = user, size = 40)
                 },
                 trailingContent = {
-                    if (user.id == currentUser?.id) {
+                    if (user.id == state.currentUserId) {
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = "Selected",
@@ -60,7 +61,10 @@ fun SettingsScreen(
                         )
                     }
                 },
-                modifier = Modifier.clickable { onUserSelected(user.id) }
+                modifier = Modifier.clickable {
+                    viewModel.setCurrentUser(user.id)
+                    onUserChanged(user.id)
+                }
             )
         }
 
@@ -84,8 +88,8 @@ fun SettingsScreen(
                 supportingContent = { Text("Display full day instead of 6 AM - 10 PM") },
                 trailingContent = {
                     Switch(
-                        checked = showAllHours,
-                        onCheckedChange = onShowAllHoursChanged
+                        checked = state.showAllHours,
+                        onCheckedChange = { viewModel.setShowAllHours(it) }
                     )
                 }
             )
