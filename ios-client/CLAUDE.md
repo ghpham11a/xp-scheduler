@@ -66,6 +66,22 @@ struct FeatureView: View {
 }
 ```
 
+### Subview Extraction Pattern
+
+Reusable subviews are extracted into `ParentView+SubView.swift` files using the same extension pattern, nested inside the parent view to avoid naming conflicts (e.g., both `CalendarView` and `AvailabilityView` have a `DayPill`):
+
+- `CalendarView+DayPill.swift`, `CalendarView+MeetingRow.swift`, `CalendarView+MonthAgendaView.swift`, `CalendarView+MeetingDetailSheet.swift`
+- `AvailabilityView+DayPill.swift`, `AvailabilityView+TimeBlockRow.swift`
+
+```swift
+// In ParentView+SubView.swift
+extension ParentView {
+    struct SubView: View { ... }
+}
+```
+
+References within the parent view resolve automatically (e.g., `DayPill(...)` inside `CalendarView` resolves to `CalendarView.DayPill`).
+
 ### SharedState
 
 `SharedState` (`Core/SharedState.swift`) is the `@Observable` singleton holding all cross-cutting data: `users`, `availabilities`, `meetings`, `currentUserId`, `use24HourTime`. ViewModels proxy properties from SharedState and mutate it directly. `currentUserId` and `use24HourTime` are persisted to UserDefaults.
@@ -85,4 +101,6 @@ Base URL is set in `APIService.swift` (`Data/Networking/APIService.swift`). Curr
 - Helper functions for time/date/slot logic live in `Shared/Utilities/Utils.swift`
 - Shared UI components (`UserAvatar`, `HeaderView`) live in `Shared/Views/`
 - Models are all `Codable` structs in `Data/Models/Models.swift`
-- SPM dependency linking requires both `XCSwiftPackageProductDependency` and `PBXBuildFile` entries in `project.pbxproj`
+- Scheduling uses only the **participant's** availability (not the current user's) plus conflict checks for both users' existing meetings
+- `findAvailableSlots` merges participant slots before checking, so it works regardless of whether the server returns individual 30-min blocks or merged ranges
+- The project uses Xcode's `PBXFileSystemSynchronizedRootGroup` — new `.swift` files placed in the Scheduler directory are picked up automatically (no `project.pbxproj` edits needed for source files). SPM packages still require `XCSwiftPackageProductDependency` and `PBXBuildFile` entries.

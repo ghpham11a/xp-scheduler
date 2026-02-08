@@ -206,24 +206,24 @@ func getUserInitials(_ name: String) -> String {
 func findAvailableSlots(
     dateStr: String,
     participantSlots: [TimeSlot],
-    currentUserSlots: [TimeSlot],
     duration: Double,
     meetings: [Meeting],
     currentUserId: String,
     participantId: String
 ) -> [Double] {
+    let mergedSlots = mergeTimeSlots(participantSlots)
     var available: [Double] = []
-    var hour = 6.0
-    while hour + duration <= 22.0 {
+    let step = duration
+    var hour = 0.0
+    while hour + duration <= 24.0 {
         let endHour = hour + duration
-        let participantAvailable = participantSlots.contains { hour >= $0.startHour && endHour <= $0.endHour }
-        let currentUserAvailable = currentUserSlots.contains { hour >= $0.startHour && endHour <= $0.endHour }
+        let participantAvailable = mergedSlots.contains { hour >= $0.startHour && endHour <= $0.endHour }
         let currentConflict = hasConflict(date: dateStr, startHour: hour, endHour: endHour, meetings: meetings, userId: currentUserId)
         let participantConflict = hasConflict(date: dateStr, startHour: hour, endHour: endHour, meetings: meetings, userId: participantId)
-        if participantAvailable && currentUserAvailable && !currentConflict && !participantConflict {
+        if participantAvailable && !currentConflict && !participantConflict {
             available.append(hour)
         }
-        hour += 0.5
+        hour += step
     }
     return available
 }
