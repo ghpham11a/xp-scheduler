@@ -2,7 +2,6 @@ import SwiftUI
 
 enum ScheduleStep: Int, CaseIterable {
     case selectParticipant = 0
-    case selectDuration
     case selectTime
     case confirm
 }
@@ -17,7 +16,7 @@ struct ScheduleView: View {
 
     @State private var currentStep: ScheduleStep = .selectParticipant
     @State private var selectedParticipant: User?
-    @State private var selectedDuration: MeetingDuration?
+    @State private var selectedDuration: MeetingDuration = .thirtyMin
     @State private var selectedDate: String?
     @State private var selectedStartHour: Double?
     @State private var meetingTitle = ""
@@ -39,8 +38,6 @@ struct ScheduleView: View {
             switch currentStep {
             case .selectParticipant:
                 participantSelection
-            case .selectDuration:
-                durationSelection
             case .selectTime:
                 timeSlotSelection
             case .confirm:
@@ -57,7 +54,7 @@ struct ScheduleView: View {
     private func resetWizard() {
         currentStep = .selectParticipant
         selectedParticipant = nil
-        selectedDuration = nil
+        selectedDuration = .thirtyMin
         selectedDate = nil
         selectedStartHour = nil
         meetingTitle = ""
@@ -74,26 +71,6 @@ struct ScheduleView: View {
 
             Spacer()
 
-            HStack(spacing: 0) {
-                ForEach(ScheduleStep.allCases, id: \.rawValue) { step in
-                    if step.rawValue > 0 {
-                        Rectangle()
-                            .fill(currentStep.rawValue > step.rawValue - 1 ? Color.blue : Color(.systemGray4))
-                            .frame(width: 20, height: 2)
-                    }
-                    Circle()
-                        .fill(currentStep.rawValue >= step.rawValue ? Color.blue : Color(.systemGray4))
-                        .frame(width: 22, height: 22)
-                        .overlay {
-                            Text("\(step.rawValue + 1)")
-                                .font(.caption2.weight(.medium))
-                                .foregroundStyle(currentStep.rawValue >= step.rawValue ? .white : .primary)
-                        }
-                }
-            }
-
-            Spacer()
-
             Button("Cancel") { resetWizard() }
                 .font(.subheadline)
         }
@@ -103,8 +80,7 @@ struct ScheduleView: View {
 
     private func goBack() {
         switch currentStep {
-        case .selectDuration: currentStep = .selectParticipant
-        case .selectTime: currentStep = .selectDuration
+        case .selectTime: currentStep = .selectParticipant
         case .confirm: currentStep = .selectTime
         default: break
         }
@@ -128,7 +104,7 @@ struct ScheduleView: View {
                     Button {
                         if hasAvail {
                             selectedParticipant = user
-                            currentStep = .selectDuration
+                            currentStep = .selectTime
                         }
                     } label: {
                         HStack(spacing: 14) {
@@ -163,111 +139,123 @@ struct ScheduleView: View {
         }
     }
 
-    // MARK: - Step 2: Duration Selection
-
-    private var durationSelection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Meeting Duration")
-                .font(.title2.bold())
-            Text("How long should the meeting be?")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
-                ForEach(MeetingDuration.allCases, id: \.self) { duration in
-                    Button {
-                        selectedDuration = duration
-                        currentStep = .selectTime
-                    } label: {
-                        Text(duration.displayName)
-                            .font(.subheadline.weight(.medium))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color(.systemGray3), lineWidth: 1)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            Spacer()
-        }
-        .padding()
-    }
-
-    // MARK: - Step 3: Time Slot Selection
+    // MARK: - Step 2: Duration + Time Slot Selection
 
     private var timeSlotSelection: some View {
         let next7Days = getNextDays(7)
         let participantSlots = viewModel.availabilities.first { $0.userId == selectedParticipant?.id }?.slots ?? []
-        let currentUserSlots = viewModel.availabilities.first { $0.userId == viewModel.currentUserId }?.slots ?? []
-        let duration = selectedDuration?.hours ?? 0.5
+        let duration = selectedDuration.hours
 
         return ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Select Time")
                     .font(.title2.bold())
 
-                if let participant = selectedParticipant, let dur = selectedDuration {
+                if let participant = selectedParticipant {
                     HStack(spacing: 6) {
                         Text("Meeting with")
                             .foregroundStyle(.secondary)
                         UserAvatar(user: participant, size: 22)
                         Text(participant.name)
                             .fontWeight(.medium)
-                        Text("- \(dur.displayName)")
-                            .foregroundStyle(.secondary)
                     }
                     .font(.subheadline)
                 }
 
-                ForEach(next7Days, id: \.self) { date in
-                    let dateStr = toIsoString(date)
-                    let dayParticipantSlots = participantSlots.filter { $0.date == dateStr }
-                    let dayCurrentSlots = currentUserSlots.filter { $0.date == dateStr }
+                // Duration picker
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Duration")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
 
-                    let available = findAvailableSlots(
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(MeetingDuration.allCases, id: \.self) { dur in
+                                Button {
+                                    selectedDuration = dur
+                                } label: {
+                                    Text(dur.displayName)
+                                        .font(.subheadline.weight(.medium))
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 8)
+                                        .background(
+                                            selectedDuration == dur ? Color.blue : Color(.secondarySystemBackground),
+                                            in: RoundedRectangle(cornerRadius: 8)
+                                        )
+                                        .foregroundStyle(selectedDuration == dur ? .white : .primary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+
+                Divider()
+                    .padding(.vertical, 4)
+
+                // Available time slots
+                let allAvailable = next7Days.flatMap { date -> [Double] in
+                    let dateStr = toIsoString(date)
+                    return findAvailableSlots(
                         dateStr: dateStr,
-                        participantSlots: dayParticipantSlots,
-                        currentUserSlots: dayCurrentSlots,
+                        participantSlots: participantSlots.filter { $0.date == dateStr },
                         duration: duration,
                         meetings: viewModel.meetings,
                         currentUserId: viewModel.currentUserId,
                         participantId: selectedParticipant?.id ?? ""
                     )
+                }
 
-                    if !available.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(formatDateRelative(date))
-                                .font(.subheadline.weight(.semibold))
+                if allAvailable.isEmpty {
+                    ContentUnavailableView(
+                        "No Available Times",
+                        systemImage: "calendar.badge.exclamationmark",
+                        description: Text("No available times for the selected duration. Try a shorter duration or ask the participant to update their availability.")
+                    )
+                } else {
+                    ForEach(next7Days, id: \.self) { date in
+                        let dateStr = toIsoString(date)
+                        let dayParticipantSlots = participantSlots.filter { $0.date == dateStr }
 
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(available, id: \.self) { startHour in
-                                        Button {
-                                            selectedDate = dateStr
-                                            selectedStartHour = startHour
-                                            currentStep = .confirm
-                                        } label: {
-                                            Text(formatHour(startHour, use24Hour: viewModel.use24HourTime))
-                                                .font(.subheadline)
-                                                .padding(.horizontal, 12)
-                                                .padding(.vertical, 8)
-                                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 8)
-                                                        .stroke(Color(.systemGray3), lineWidth: 1)
-                                                )
+                        let available = findAvailableSlots(
+                            dateStr: dateStr,
+                            participantSlots: dayParticipantSlots,
+                            duration: duration,
+                            meetings: viewModel.meetings,
+                            currentUserId: viewModel.currentUserId,
+                            participantId: selectedParticipant?.id ?? ""
+                        )
+
+                        if !available.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(formatDateRelative(date))
+                                    .font(.subheadline.weight(.semibold))
+
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(available, id: \.self) { startHour in
+                                            Button {
+                                                selectedDate = dateStr
+                                                selectedStartHour = startHour
+                                                currentStep = .confirm
+                                            } label: {
+                                                Text(formatHour(startHour, use24Hour: viewModel.use24HourTime))
+                                                    .font(.subheadline)
+                                                    .padding(.horizontal, 12)
+                                                    .padding(.vertical, 8)
+                                                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 8)
+                                                            .stroke(Color(.systemGray3), lineWidth: 1)
+                                                    )
+                                            }
+                                            .buttonStyle(.plain)
                                         }
-                                        .buttonStyle(.plain)
                                     }
                                 }
                             }
+                            .padding(.vertical, 4)
                         }
-                        .padding(.vertical, 4)
                     }
                 }
             }
@@ -278,7 +266,7 @@ struct ScheduleView: View {
     // MARK: - Step 4: Confirmation
 
     private var confirmationView: some View {
-        let endHour = (selectedStartHour ?? 0) + (selectedDuration?.hours ?? 0)
+        let endHour = (selectedStartHour ?? 0) + selectedDuration.hours
 
         return ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -308,9 +296,9 @@ struct ScheduleView: View {
                         }
                     }
 
-                    if let startHour = selectedStartHour, let dur = selectedDuration {
+                    if let startHour = selectedStartHour {
                         Label {
-                            Text("\(formatTimeRange(startHour, endHour, use24Hour: viewModel.use24HourTime)) (\(dur.displayName))")
+                            Text("\(formatTimeRange(startHour, endHour, use24Hour: viewModel.use24HourTime)) (\(selectedDuration.displayName))")
                                 .fontWeight(.medium)
                         } icon: {
                             Image(systemName: "clock")
@@ -329,14 +317,13 @@ struct ScheduleView: View {
                 Button {
                     guard let participant = selectedParticipant,
                           let date = selectedDate,
-                          let startHour = selectedStartHour,
-                          let duration = selectedDuration else { return }
+                          let startHour = selectedStartHour else { return }
                     viewModel.addMeeting(
                         organizerId: viewModel.currentUserId,
                         participantId: participant.id,
                         date: date,
                         startHour: startHour,
-                        endHour: startHour + duration.hours,
+                        endHour: startHour + selectedDuration.hours,
                         title: meetingTitle
                     )
                     resetWizard()
