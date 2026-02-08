@@ -21,7 +21,7 @@ data class SettingsState(
     val users: List<User> = emptyList(),
     val currentUserId: String = "",
     val currentUser: User? = null,
-    val showAllHours: Boolean = false,
+    val use24HourFormat: Boolean = false,
     val isLoading: Boolean = true,
     val error: String? = null
 )
@@ -35,7 +35,7 @@ class SettingsViewModel @Inject constructor(
     val state: StateFlow<SettingsState> = _state.asStateFlow()
 
     private val CURRENT_USER_KEY = stringPreferencesKey("current_user_id")
-    private val SHOW_ALL_HOURS_KEY = stringPreferencesKey("show_all_hours")
+    private val USE_24_HOUR_FORMAT_KEY = stringPreferencesKey("use_24_hour_format")
 
     init {
         loadPersistedSettings()
@@ -46,9 +46,9 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             dataStore.data.first().let { prefs ->
                 val userId = prefs[CURRENT_USER_KEY] ?: ""
-                val showAllHours = prefs[SHOW_ALL_HOURS_KEY]?.toBoolean() ?: false
+                val use24HourFormat = prefs[USE_24_HOUR_FORMAT_KEY]?.toBoolean() ?: false
                 _state.update {
-                    it.copy(currentUserId = userId, showAllHours = showAllHours)
+                    it.copy(currentUserId = userId, use24HourFormat = use24HourFormat)
                 }
             }
         }
@@ -101,11 +101,11 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setShowAllHours(show: Boolean) {
-        _state.update { it.copy(showAllHours = show) }
+    fun setUse24HourFormat(use24Hour: Boolean) {
+        _state.update { it.copy(use24HourFormat = use24Hour) }
         viewModelScope.launch {
             dataStore.edit { prefs ->
-                prefs[SHOW_ALL_HOURS_KEY] = show.toString()
+                prefs[USE_24_HOUR_FORMAT_KEY] = use24Hour.toString()
             }
         }
     }

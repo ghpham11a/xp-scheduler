@@ -20,8 +20,10 @@ fun ConfirmationScreen(
     selectedDate: String,
     selectedStartHour: Double,
     meetingTitle: String,
+    use24HourFormat: Boolean = false,
     onTitleChange: (String) -> Unit,
-    onConfirm: () -> Unit
+    onConfirm: () -> Unit,
+    onBack: () -> Unit
 ) {
     val date = selectedDate.toLocalDate()
     val endHour = selectedStartHour + duration.hours
@@ -83,7 +85,7 @@ fun ConfirmationScreen(
                     Column {
                         Text("Time", style = MaterialTheme.typography.labelSmall)
                         Text(
-                            "${formatTimeRange(selectedStartHour, endHour)} (${duration.displayName})",
+                            "${formatTimeRange(selectedStartHour, endHour, use24HourFormat)} (${duration.displayName})",
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -105,14 +107,25 @@ fun ConfirmationScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
-            onClick = onConfirm,
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            enabled = meetingTitle.isNotBlank()
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(Icons.Default.Check, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Schedule Meeting")
+            TextButton(
+                onClick = onBack
+            ) {
+                Text("Back")
+            }
+
+            Button(
+                onClick = onConfirm,
+                modifier = Modifier.weight(1f),
+                enabled = meetingTitle.isNotBlank()
+            ) {
+                Icon(Icons.Default.Check, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Schedule Meeting")
+            }
         }
     }
 }

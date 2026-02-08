@@ -1,15 +1,23 @@
 import { TimeSlot, Meeting } from '@/types';
 
-export function formatHour(hour: number): string {
+export function formatHour(hour: number, use24Hour: boolean = false): string {
+  if (use24Hour) {
+    return `${Math.floor(hour).toString().padStart(2, '0')}:00`;
+  }
   const period = hour >= 12 ? 'PM' : 'AM';
   const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
   return `${displayHour}${period}`;
 }
 
-export function formatTime(hour: number): string {
+export function formatTime(hour: number, use24Hour: boolean = false): string {
   const totalMinutes = Math.round(hour * 60);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
+
+  if (use24Hour) {
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }
+
   const period = hours >= 12 ? 'PM' : 'AM';
   const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
 
@@ -19,12 +27,12 @@ export function formatTime(hour: number): string {
   return `${displayHour}:${minutes.toString().padStart(2, '0')}${period}`;
 }
 
-export function formatHourRange(startHour: number, endHour: number): string {
-  return `${formatHour(startHour)} - ${formatHour(endHour)}`;
+export function formatHourRange(startHour: number, endHour: number, use24Hour: boolean = false): string {
+  return `${formatHour(startHour, use24Hour)} - ${formatHour(endHour, use24Hour)}`;
 }
 
-export function formatTimeRange(startHour: number, endHour: number): string {
-  return `${formatTime(startHour)} - ${formatTime(endHour)}`;
+export function formatTimeRange(startHour: number, endHour: number, use24Hour: boolean = false): string {
+  return `${formatTime(startHour, use24Hour)} - ${formatTime(endHour, use24Hour)}`;
 }
 
 export function generateId(): string {

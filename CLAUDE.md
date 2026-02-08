@@ -109,13 +109,17 @@ server/
 
 ### State Management
 
-**Next.js (Zustand)**: `lib/store.ts` manages currentUserId (persisted to localStorage), users, availabilities, and meetings with optimistic updates.
+**Next.js (Zustand)**: `lib/store.ts` manages currentUserId, use24HourTime (both persisted to localStorage), users, availabilities, and meetings with optimistic updates.
 
 **Android (ViewModel)**: `SchedulerViewModel.kt` mirrors the same pattern using StateFlow and DataStore for persistence.
 
 **iOS (@Observable)**: `SchedulerViewModel.swift` uses iOS 17's `@Observable` macro with UserDefaults for currentUserId persistence.
 
 All three use optimistic updates - local state updates immediately, then syncs with server. On error, refetch from API.
+
+### User Preferences
+
+The `use24HourTime` setting (military time) is stored in Zustand and accessed throughout components via `useSchedulerStore()`. Time formatting functions in `lib/utils.ts` (`formatTime`, `formatHour`, `formatTimeRange`, `formatHourRange`) accept an optional `use24Hour` boolean parameter.
 
 ### Key Data Types
 

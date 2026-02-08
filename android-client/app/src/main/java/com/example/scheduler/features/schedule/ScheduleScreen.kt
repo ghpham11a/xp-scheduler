@@ -12,6 +12,7 @@ import com.example.scheduler.utils.MeetingDuration
 @Composable
 fun ScheduleScreen(
     currentUserId: String,
+    use24HourFormat: Boolean = false,
     viewModel: ScheduleViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -42,35 +43,12 @@ fun ScheduleScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        // Progress indicator
-        if (currentStep != ScheduleStep.SELECT_PARTICIPANT) {
-            WizardProgress(
-                currentStep = currentStep,
-                onBack = {
-                    when (currentStep) {
-                        ScheduleStep.SELECT_DURATION -> currentStep = ScheduleStep.SELECT_PARTICIPANT
-                        ScheduleStep.SELECT_TIME -> currentStep = ScheduleStep.SELECT_DURATION
-                        ScheduleStep.CONFIRM -> currentStep = ScheduleStep.SELECT_TIME
-                        else -> {}
-                    }
-                },
-                onReset = { resetWizard() }
-            )
-        }
-
         when (currentStep) {
             ScheduleStep.SELECT_PARTICIPANT -> ParticipantSelection(
                 otherUsers = otherUsers,
                 availabilities = state.availabilities,
                 onSelect = { user ->
                     selectedParticipant = user
-                    currentStep = ScheduleStep.SELECT_DURATION
-                }
-            )
-
-            ScheduleStep.SELECT_DURATION -> DurationSelection(
-                onSelect = { duration ->
-                    selectedDuration = duration
                     currentStep = ScheduleStep.SELECT_TIME
                 }
             )
@@ -78,13 +56,15 @@ fun ScheduleScreen(
             ScheduleStep.SELECT_TIME -> TimeSlotSelection(
                 currentUserId = currentUserId,
                 participant = selectedParticipant!!,
-                duration = selectedDuration!!,
                 availabilities = state.availabilities,
                 meetings = state.meetings,
-                onSelect = { date, startHour ->
+                use24HourFormat = use24HourFormat,
+                onSelect = { date, startHour, duration ->
                     selectedSlot = date to startHour
+                    selectedDuration = duration
                     currentStep = ScheduleStep.CONFIRM
-                }
+                },
+                onBack = { currentStep = ScheduleStep.SELECT_PARTICIPANT }
             )
 
             ScheduleStep.CONFIRM -> ConfirmationScreen(
@@ -93,6 +73,7 @@ fun ScheduleScreen(
                 selectedDate = selectedSlot!!.first,
                 selectedStartHour = selectedSlot!!.second,
                 meetingTitle = meetingTitle,
+                use24HourFormat = use24HourFormat,
                 onTitleChange = { meetingTitle = it },
                 onConfirm = {
                     viewModel.addMeeting(
@@ -104,7 +85,8 @@ fun ScheduleScreen(
                         title = meetingTitle
                     )
                     resetWizard()
-                }
+                },
+                onBack = { currentStep = ScheduleStep.SELECT_TIME }
             )
         }
 
@@ -115,6 +97,7 @@ fun ScheduleScreen(
                 meetings = currentUserMeetings,
                 currentUserId = currentUserId,
                 getUserById = { viewModel.getUserById(it) },
+                use24HourFormat = use24HourFormat,
                 onCancelMeeting = { viewModel.cancelMeeting(it) }
             )
         }

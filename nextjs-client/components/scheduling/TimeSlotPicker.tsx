@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { TimeSlot, Meeting } from '@/types';
 import { formatTime, hasConflict } from '@/lib/utils';
+import { useSchedulerStore } from '@/lib/store';
 
 interface TimeBlock {
   startHour: number;
@@ -117,6 +118,7 @@ export function TimeSlotPicker({
   selectedBlock,
   onBlockSelect,
 }: TimeSlotPickerProps) {
+  const { use24HourTime } = useSchedulerStore();
   const daySchedules = useMemo<DaySchedule[]>(() => {
     const days = getNextSevenDays();
 
@@ -207,7 +209,7 @@ export function TimeSlotPicker({
                     `}
                     title={isDisabled ? `Conflict: ${block.conflictTitle}` : undefined}
                   >
-                    {formatTime(block.startHour)} - {formatTime(block.endHour)}
+                    {formatTime(block.startHour, use24HourTime)} - {formatTime(block.endHour, use24HourTime)}
                   </button>
                 );
               })}

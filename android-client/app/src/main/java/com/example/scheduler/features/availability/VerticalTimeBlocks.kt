@@ -22,6 +22,7 @@ import java.time.LocalDate
 fun VerticalTimeBlocks(
     date: LocalDate,
     slots: List<TimeSlot>,
+    use24HourFormat: Boolean = false,
     onSlotsChanged: (List<TimeSlot>) -> Unit
 ) {
     val dateStr = date.toIsoString()
@@ -46,6 +47,7 @@ fun VerticalTimeBlocks(
                     hour = hour,
                     isAvailable = isAvailable,
                     isHourMark = isHourMark,
+                    use24HourFormat = use24HourFormat,
                     onToggle = {
                         val newSlots = if (isAvailable) {
                             removeTimeBlock(slots, dateStr, hour)
@@ -74,6 +76,7 @@ fun TimeBlockRow(
     hour: Double,
     isAvailable: Boolean,
     isHourMark: Boolean,
+    use24HourFormat: Boolean = false,
     onToggle: () -> Unit
 ) {
     val backgroundColor = if (isAvailable) {
@@ -99,7 +102,7 @@ fun TimeBlockRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = formatHour(hour),
+            text = formatHour(hour, use24HourFormat),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (isHourMark) FontWeight.Medium else FontWeight.Normal,
             color = contentColor,

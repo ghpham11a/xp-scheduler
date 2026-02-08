@@ -3,6 +3,7 @@
 import { TimeSlot, Meeting } from '@/types';
 import { DAYS_OF_WEEK, HOURS, WORK_HOURS } from '@/lib/constants';
 import { formatHour, hasTimeSlot, getConflictsForSlot } from '@/lib/utils';
+import { useSchedulerStore } from '@/lib/store';
 
 interface UserAvailabilityGridProps {
   slots: TimeSlot[];
@@ -21,6 +22,7 @@ export function UserAvailabilityGrid({
   meetings = [],
   participantId,
 }: UserAvailabilityGridProps) {
+  const { use24HourTime } = useSchedulerStore();
   const visibleHours = HOURS.filter(
     (h) => h >= WORK_HOURS.start && h < WORK_HOURS.end
   );
@@ -45,7 +47,7 @@ export function UserAvailabilityGrid({
         {visibleHours.map((hour) => (
           <div key={hour} className="flex">
             <div className="w-16 shrink-0 border-b border-r border-zinc-200 bg-zinc-50 px-2 py-1 text-right text-xs text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
-              {formatHour(hour)}
+              {formatHour(hour, use24HourTime)}
             </div>
             {DAYS_OF_WEEK.map((_, dayIndex) => {
               const isAvailable = hasTimeSlot(slots, dayIndex, hour);

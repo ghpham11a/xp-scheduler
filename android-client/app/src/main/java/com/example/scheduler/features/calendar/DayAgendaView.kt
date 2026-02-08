@@ -14,6 +14,7 @@ import com.example.scheduler.data.models.User
 fun DayAgendaView(
     meetings: List<Meeting>,
     getUserById: (String) -> User?,
+    use24HourFormat: Boolean = false,
     onMeetingClick: (Meeting) -> Unit
 ) {
     if (meetings.isEmpty()) {
@@ -26,6 +27,7 @@ fun DayAgendaView(
                 MeetingRow(
                     meeting = meeting,
                     getUserById = getUserById,
+                    use24HourFormat = use24HourFormat,
                     onClick = { onMeetingClick(meeting) }
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))

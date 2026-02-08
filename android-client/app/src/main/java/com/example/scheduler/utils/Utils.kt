@@ -13,26 +13,32 @@ import com.example.scheduler.data.models.TimeSlot
 val DAYS = listOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
 val SHORT_DAYS = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
 
-// Format decimal hour to time string (e.g., 9.5 -> "9:30 AM")
-fun formatHour(hour: Double): String {
+// Format decimal hour to time string (e.g., 9.5 -> "9:30 AM" or "09:30" in 24-hour format)
+fun formatHour(hour: Double, use24HourFormat: Boolean = false): String {
     val hourInt = hour.toInt()
     val minutes = ((hour - hourInt) * 60).roundToInt()
-    val displayHour = when {
-        hourInt == 0 || hourInt == 24 -> 12
-        hourInt > 12 -> hourInt - 12
-        else -> hourInt
-    }
-    val amPm = if (hourInt < 12) "AM" else "PM"
-    return if (minutes == 0) {
-        "$displayHour $amPm"
+
+    return if (use24HourFormat) {
+        val displayHour = if (hourInt == 24) 0 else hourInt
+        "${displayHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}"
     } else {
-        "$displayHour:${minutes.toString().padStart(2, '0')} $amPm"
+        val displayHour = when {
+            hourInt == 0 || hourInt == 24 -> 12
+            hourInt > 12 -> hourInt - 12
+            else -> hourInt
+        }
+        val amPm = if (hourInt < 12) "AM" else "PM"
+        if (minutes == 0) {
+            "$displayHour $amPm"
+        } else {
+            "$displayHour:${minutes.toString().padStart(2, '0')} $amPm"
+        }
     }
 }
 
-// Format time range (e.g., "9:30 AM - 10:30 AM")
-fun formatTimeRange(startHour: Double, endHour: Double): String {
-    return "${formatHour(startHour)} - ${formatHour(endHour)}"
+// Format time range (e.g., "9:30 AM - 10:30 AM" or "09:30 - 10:30" in 24-hour format)
+fun formatTimeRange(startHour: Double, endHour: Double, use24HourFormat: Boolean = false): String {
+    return "${formatHour(startHour, use24HourFormat)} - ${formatHour(endHour, use24HourFormat)}"
 }
 
 // Get next N days starting from today

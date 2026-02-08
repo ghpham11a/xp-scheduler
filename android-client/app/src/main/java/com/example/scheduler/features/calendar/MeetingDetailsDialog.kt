@@ -24,6 +24,7 @@ fun MeetingDetailsDialog(
     meeting: Meeting,
     getUserById: (String) -> User?,
     currentUserId: String,
+    use24HourFormat: Boolean = false,
     onDismiss: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -101,7 +102,7 @@ fun MeetingDetailsDialog(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "${formatTimeRange(meeting.startHour, meeting.endHour)} (${(meeting.endHour - meeting.startHour).toInt()}h)",
+                            text = "${formatTimeRange(meeting.startHour, meeting.endHour, use24HourFormat)} (${(meeting.endHour - meeting.startHour).toInt()}h)",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

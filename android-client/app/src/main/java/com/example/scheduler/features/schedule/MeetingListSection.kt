@@ -21,6 +21,7 @@ fun MeetingListSection(
     meetings: List<Meeting>,
     currentUserId: String,
     getUserById: (String) -> User?,
+    use24HourFormat: Boolean = false,
     onCancelMeeting: (String) -> Unit
 ) {
     Column(
@@ -75,7 +76,7 @@ fun MeetingListSection(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "${formatDateRelative(meeting.date.toLocalDate())} • ${formatTimeRange(meeting.startHour, meeting.endHour)}",
+                                text = "${formatDateRelative(meeting.date.toLocalDate())} • ${formatTimeRange(meeting.startHour, meeting.endHour, use24HourFormat)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

@@ -3,13 +3,8 @@
 import { useSchedulerStore } from '@/lib/store';
 import { getUserInitials } from '@/lib/utils';
 
-interface SettingsViewProps {
-  showAllHours: boolean;
-  onShowAllHoursChange: (value: boolean) => void;
-}
-
-export function SettingsView({ showAllHours, onShowAllHoursChange }: SettingsViewProps) {
-  const { currentUserId, users, setCurrentUser } = useSchedulerStore();
+export function SettingsView() {
+  const { currentUserId, users, setCurrentUser, use24HourTime, setUse24HourTime } = useSchedulerStore();
   const currentUser = users.find((u) => u.id === currentUserId);
 
   return (
@@ -65,17 +60,17 @@ export function SettingsView({ showAllHours, onShowAllHoursChange }: SettingsVie
           <label className="flex items-center justify-between cursor-pointer">
             <div>
               <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                Show 24-hour time range
+                Use 24-hour time
               </div>
               <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                Display full day instead of 6 AM - 10 PM
+                Display times in military format (e.g., 14:00 instead of 2 PM)
               </div>
             </div>
             <div className="relative">
               <input
                 type="checkbox"
-                checked={showAllHours}
-                onChange={(e) => onShowAllHoursChange(e.target.checked)}
+                checked={use24HourTime}
+                onChange={(e) => setUse24HourTime(e.target.checked)}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-zinc-600 peer-checked:bg-blue-600"></div>

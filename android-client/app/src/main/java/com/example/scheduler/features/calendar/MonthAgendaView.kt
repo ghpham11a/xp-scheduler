@@ -23,6 +23,7 @@ fun MonthAgendaView(
     meetingsByDate: Map<String, List<Meeting>>,
     today: LocalDate,
     getUserById: (String) -> User?,
+    use24HourFormat: Boolean = false,
     onMeetingClick: (Meeting) -> Unit
 ) {
     if (meetingsByDate.isEmpty()) {
@@ -96,6 +97,7 @@ fun MonthAgendaView(
                         MeetingRow(
                             meeting = meeting,
                             getUserById = getUserById,
+                            use24HourFormat = use24HourFormat,
                             onClick = { onMeetingClick(meeting) }
                         )
                     }
