@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CE20A9652F3799430040C92D /* Swinject in Frameworks */ = {isa = PBXBuildFile; productRef = CE20A9642F3799430040C92D /* Swinject */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		CE1203A72F295C7F0051CD19 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CE20A9652F3799430040C92D /* Swinject in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = Scheduler;
 			packageProductDependencies = (
+				CE20A9642F3799430040C92D /* Swinject */,
 			);
 			productName = Scheduler;
 			productReference = CE1203992F295C7E0051CD19 /* Scheduler.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = CE1203902F295C7E0051CD19;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CE20A9632F3799430040C92D /* XCRemoteSwiftPackageReference "Swinject" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CE12039A2F295C7E0051CD19 /* Products */;
 			projectDirPath = "";
@@ -607,6 +616,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CE20A9632F3799430040C92D /* XCRemoteSwiftPackageReference "Swinject" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Swinject/Swinject.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CE20A9642F3799430040C92D /* Swinject */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE20A9632F3799430040C92D /* XCRemoteSwiftPackageReference "Swinject" */;
+			productName = Swinject;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = CE1203912F295C7E0051CD19 /* Project object */;
 }

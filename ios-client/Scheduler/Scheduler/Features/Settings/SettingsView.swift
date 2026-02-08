@@ -1,19 +1,21 @@
 import SwiftUI
 
 struct SettingsView: View {
-    let currentUser: User?
-    let users: [User]
-    @Binding var use24HourTime: Bool
-    let onUserSelected: (String) -> Void
+
+    @State private var viewModel: ViewModel
+
+    init(viewModel: ViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
 
     var body: some View {
         NavigationStack {
             List {
                 Section("Account") {
                     Menu {
-                        ForEach(users) { user in
+                        ForEach(viewModel.users) { user in
                             Button {
-                                onUserSelected(user.id)
+                                viewModel.setCurrentUser(user.id)
                             } label: {
                                 Label {
                                     VStack(alignment: .leading) {
@@ -23,7 +25,7 @@ struct SettingsView: View {
                                             .foregroundStyle(.secondary)
                                     }
                                 } icon: {
-                                    if user.id == currentUser?.id {
+                                    if user.id == viewModel.currentUser?.id {
                                         Image(systemName: "checkmark")
                                     }
                                 }
@@ -31,7 +33,7 @@ struct SettingsView: View {
                         }
                     } label: {
                         HStack {
-                            if let currentUser {
+                            if let currentUser = viewModel.currentUser {
                                 UserAvatar(user: currentUser, size: 32)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(currentUser.name)
@@ -50,7 +52,10 @@ struct SettingsView: View {
                 }
 
                 Section("Calendar") {
-                    Toggle("24-Hour Time", isOn: $use24HourTime)
+                    Toggle("24-Hour Time", isOn: Binding(
+                        get: { viewModel.use24HourTime },
+                        set: { viewModel.use24HourTime = $0 }
+                    ))
                 }
             }
             .navigationTitle("Settings")

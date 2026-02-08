@@ -8,14 +8,12 @@ enum ScheduleStep: Int, CaseIterable {
 }
 
 struct ScheduleView: View {
-    let currentUserId: String
-    let users: [User]
-    let availabilities: [Availability]
-    let meetings: [Meeting]
-    let use24HourTime: Bool
-    let onScheduleMeeting: (String, String, String, Double, Double, String) -> Void
-    let onCancelMeeting: (String) -> Void
-    let userById: (String) -> User?
+
+    @State private var viewModel: ViewModel
+
+    init(viewModel: ViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
 
     @State private var currentStep: ScheduleStep = .selectParticipant
     @State private var selectedParticipant: User?
@@ -25,11 +23,11 @@ struct ScheduleView: View {
     @State private var meetingTitle = ""
 
     private var otherUsers: [User] {
-        users.filter { $0.id != currentUserId }
+        viewModel.users.filter { $0.id != viewModel.currentUserId }
     }
 
     private var currentUserMeetings: [Meeting] {
-        getMeetingsForUser(meetings, userId: currentUserId)
+        getMeetingsForUser(viewModel.meetings, userId: viewModel.currentUserId)
     }
 
     var body: some View {
@@ -124,7 +122,7 @@ struct ScheduleView: View {
                     .foregroundStyle(.secondary)
 
                 ForEach(otherUsers) { user in
-                    let userAvail = availabilities.first { $0.userId == user.id }
+                    let userAvail = viewModel.availabilities.first { $0.userId == user.id }
                     let hasAvail = (userAvail?.slots.isEmpty == false)
 
                     Button {
@@ -204,8 +202,8 @@ struct ScheduleView: View {
 
     private var timeSlotSelection: some View {
         let next7Days = getNextDays(7)
-        let participantSlots = availabilities.first { $0.userId == selectedParticipant?.id }?.slots ?? []
-        let currentUserSlots = availabilities.first { $0.userId == currentUserId }?.slots ?? []
+        let participantSlots = viewModel.availabilities.first { $0.userId == selectedParticipant?.id }?.slots ?? []
+        let currentUserSlots = viewModel.availabilities.first { $0.userId == viewModel.currentUserId }?.slots ?? []
         let duration = selectedDuration?.hours ?? 0.5
 
         return ScrollView {
@@ -236,8 +234,8 @@ struct ScheduleView: View {
                         participantSlots: dayParticipantSlots,
                         currentUserSlots: dayCurrentSlots,
                         duration: duration,
-                        meetings: meetings,
-                        currentUserId: currentUserId,
+                        meetings: viewModel.meetings,
+                        currentUserId: viewModel.currentUserId,
                         participantId: selectedParticipant?.id ?? ""
                     )
 
@@ -254,7 +252,7 @@ struct ScheduleView: View {
                                             selectedStartHour = startHour
                                             currentStep = .confirm
                                         } label: {
-                                            Text(formatHour(startHour, use24Hour: use24HourTime))
+                                            Text(formatHour(startHour, use24Hour: viewModel.use24HourTime))
                                                 .font(.subheadline)
                                                 .padding(.horizontal, 12)
                                                 .padding(.vertical, 8)
@@ -312,7 +310,7 @@ struct ScheduleView: View {
 
                     if let startHour = selectedStartHour, let dur = selectedDuration {
                         Label {
-                            Text("\(formatTimeRange(startHour, endHour, use24Hour: use24HourTime)) (\(dur.displayName))")
+                            Text("\(formatTimeRange(startHour, endHour, use24Hour: viewModel.use24HourTime)) (\(dur.displayName))")
                                 .fontWeight(.medium)
                         } icon: {
                             Image(systemName: "clock")
@@ -333,13 +331,13 @@ struct ScheduleView: View {
                           let date = selectedDate,
                           let startHour = selectedStartHour,
                           let duration = selectedDuration else { return }
-                    onScheduleMeeting(
-                        currentUserId,
-                        participant.id,
-                        date,
-                        startHour,
-                        startHour + duration.hours,
-                        meetingTitle
+                    viewModel.addMeeting(
+                        organizerId: viewModel.currentUserId,
+                        participantId: participant.id,
+                        date: date,
+                        startHour: startHour,
+                        endHour: startHour + duration.hours,
+                        title: meetingTitle
                     )
                     resetWizard()
                 } label: {
@@ -367,10 +365,10 @@ struct ScheduleView: View {
             ScrollView {
                 LazyVStack(spacing: 8) {
                     ForEach(sorted) { meeting in
-                        let otherUserId = meeting.organizerId == currentUserId
+                        let otherUserId = meeting.organizerId == viewModel.currentUserId
                             ? meeting.participantId : meeting.organizerId
-                        let otherUser = userById(otherUserId)
-                        let isOrganizer = meeting.organizerId == currentUserId
+                        let otherUser = viewModel.userById(otherUserId)
+                        let isOrganizer = meeting.organizerId == viewModel.currentUserId
 
                         HStack(spacing: 12) {
                             if let otherUser {
@@ -384,7 +382,7 @@ struct ScheduleView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 if let date = fromIsoString(meeting.date) {
-                                    Text("\(formatDateRelative(date)) - \(formatTimeRange(meeting.startHour, meeting.endHour, use24Hour: use24HourTime))")
+                                    Text("\(formatDateRelative(date)) - \(formatTimeRange(meeting.startHour, meeting.endHour, use24Hour: viewModel.use24HourTime))")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -394,7 +392,7 @@ struct ScheduleView: View {
 
                             if isOrganizer {
                                 Button {
-                                    onCancelMeeting(meeting.id)
+                                    viewModel.cancelMeeting(meeting.id)
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
                                         .foregroundStyle(.red)
