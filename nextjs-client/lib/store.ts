@@ -15,6 +15,10 @@ export const useSchedulerStore = create<SchedulerStore>()(
       meetings: [],
       isLoading: false,
       error: null,
+      // Per-operation loading states
+      isSavingAvailability: false,
+      isCreatingMeeting: false,
+      cancellingMeetingId: null,
 
       // Fetch all data from API
       fetchData: async () => {
@@ -61,7 +65,7 @@ export const useSchedulerStore = create<SchedulerStore>()(
             newAvailabilities.push({ userId, slots });
           }
 
-          return { availabilities: newAvailabilities };
+          return { availabilities: newAvailabilities, isSavingAvailability: true };
         });
 
         // Sync with server
@@ -71,10 +75,13 @@ export const useSchedulerStore = create<SchedulerStore>()(
           // Revert on failure by refetching
           console.error('Failed to save availability:', error);
           get().fetchData();
+        } finally {
+          set({ isSavingAvailability: false });
         }
       },
 
       addMeeting: async (meeting: Omit<Meeting, 'id'>) => {
+        set({ isCreatingMeeting: true });
         try {
           const newMeeting = await meetingsApi.create(meeting);
           set((state) => ({
@@ -83,10 +90,15 @@ export const useSchedulerStore = create<SchedulerStore>()(
         } catch (error) {
           console.error('Failed to create meeting:', error);
           throw error;
+        } finally {
+          set({ isCreatingMeeting: false });
         }
       },
 
       cancelMeeting: async (meetingId: string) => {
+        // Set loading state for this specific meeting
+        set({ cancellingMeetingId: meetingId });
+
         // Optimistically remove from local state
         const previousMeetings = get().meetings;
         set((state) => ({
@@ -100,6 +112,8 @@ export const useSchedulerStore = create<SchedulerStore>()(
           // Revert on failure
           console.error('Failed to cancel meeting:', error);
           set({ meetings: previousMeetings });
+        } finally {
+          set({ cancellingMeetingId: null });
         }
       },
     }),

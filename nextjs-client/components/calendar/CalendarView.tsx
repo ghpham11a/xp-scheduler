@@ -29,7 +29,7 @@ interface CalendarViewProps {
 }
 
 export function CalendarView({ showAllHours }: CalendarViewProps) {
-  const { currentUserId, users, meetings, cancelMeeting } = useSchedulerStore();
+  const { currentUserId, users, meetings, cancelMeeting, cancellingMeetingId } = useSchedulerStore();
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
@@ -136,15 +136,7 @@ export function CalendarView({ showAllHours }: CalendarViewProps) {
       {/* Header */}
       <div className="p-4 border-b border-zinc-200 dark:border-zinc-700">
         <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-              Calendar
-            </h2>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Your scheduled meetings
-            </p>
-          </div>
-
+          <div/>
           {/* View Mode Switcher */}
           <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
             <button
@@ -330,6 +322,7 @@ export function CalendarView({ showAllHours }: CalendarViewProps) {
           otherUser={getOtherUser(selectedMeeting)}
           onClose={() => setSelectedMeeting(null)}
           onCancel={() => handleCancelMeeting(selectedMeeting.id)}
+          isCancelling={cancellingMeetingId === selectedMeeting.id}
         />
       )}
     </div>
@@ -404,12 +397,14 @@ function MeetingModal({
   otherUser,
   onClose,
   onCancel,
+  isCancelling,
 }: {
   meeting: Meeting;
   currentUserId: string;
   otherUser: { id: string; name: string; email: string; avatarColor: string } | undefined;
   onClose: () => void;
   onCancel: () => void;
+  isCancelling?: boolean;
 }) {
   return (
     <div
@@ -488,16 +483,28 @@ function MeetingModal({
         <div className="px-4 py-3 bg-zinc-50 dark:bg-zinc-800/50 flex gap-2 justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+            disabled={isCancelling}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50"
           >
             Close
           </button>
           {meeting.organizerId === currentUserId && (
             <button
               onClick={onCancel}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-500 hover:bg-red-600"
+              disabled={isCancelling}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-500 hover:bg-red-600 disabled:opacity-50"
             >
-              Cancel Meeting
+              {isCancelling ? (
+                <span className="flex items-center gap-2">
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Cancelling...
+                </span>
+              ) : (
+                'Cancel Meeting'
+              )}
             </button>
           )}
         </div>

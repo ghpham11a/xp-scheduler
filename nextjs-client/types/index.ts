@@ -33,6 +33,10 @@ export interface SchedulerState {
   meetings: Meeting[];
   isLoading: boolean;
   error: string | null;
+  // Per-operation loading states
+  isSavingAvailability: boolean;
+  isCreatingMeeting: boolean;
+  cancellingMeetingId: string | null;
 }
 
 export interface SchedulerActions {

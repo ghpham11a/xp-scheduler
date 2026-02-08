@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useSchedulerStore } from '@/lib/store';
 import { getMeetingsForUser, getUserInitials } from '@/lib/utils';
+import { validateMeetingTitle, MEETING_TITLE_MAX_LENGTH } from '@/lib/validation';
 import { TimeSlotPicker } from './TimeSlotPicker';
 import { MeetingList } from './MeetingList';
 
@@ -23,6 +24,8 @@ export function ScheduleMeetingView() {
     meetings,
     addMeeting,
     cancelMeeting,
+    isCreatingMeeting,
+    cancellingMeetingId,
   } = useSchedulerStore();
 
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -33,6 +36,7 @@ export function ScheduleMeetingView() {
     endHour: number;
   } | null>(null);
   const [title, setTitle] = useState('');
+  const [titleError, setTitleError] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const otherUsers = users.filter((u) => u.id !== currentUserId);
@@ -48,30 +52,56 @@ export function ScheduleMeetingView() {
     setShowConfirm(true);
   };
 
-  const handleSchedule = () => {
-    if (!selectedUserId || !selectedBlock || !title.trim()) return;
+  const handleSchedule = async () => {
+    if (!selectedUserId || !selectedBlock) return;
 
-    addMeeting({
-      organizerId: currentUserId,
-      participantId: selectedUserId,
-      date: selectedBlock.date,
-      startHour: selectedBlock.startHour,
-      endHour: selectedBlock.endHour,
-      title: title.trim(),
-    });
+    // Validate title
+    const validation = validateMeetingTitle(title);
+    if (!validation.isValid) {
+      setTitleError(validation.error || 'Invalid title');
+      return;
+    }
 
-    // Reset state
-    setSelectedBlock(null);
-    setTitle('');
-    setShowConfirm(false);
-    setSelectedUserId(null);
+    setTitleError(null);
+
+    try {
+      await addMeeting({
+        organizerId: currentUserId,
+        participantId: selectedUserId,
+        date: selectedBlock.date,
+        startHour: selectedBlock.startHour,
+        endHour: selectedBlock.endHour,
+        title: validation.sanitized,
+      });
+
+      // Reset state only on success
+      setSelectedBlock(null);
+      setTitle('');
+      setShowConfirm(false);
+      setSelectedUserId(null);
+    } catch (error) {
+      // Error is already logged in store, show to user
+      setTitleError('Failed to schedule meeting. Please try again.');
+    }
   };
 
   const handleCancel = () => {
     setSelectedBlock(null);
     setTitle('');
+    setTitleError(null);
     setShowConfirm(false);
   };
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTitle = e.target.value;
+    setTitle(newTitle);
+    // Clear error when user starts typing
+    if (titleError) {
+      setTitleError(null);
+    }
+  };
+
+  const validation = validateMeetingTitle(title);
 
   const formatSelectedTime = () => {
     if (!selectedBlock) return '';
@@ -220,38 +250,63 @@ export function ScheduleMeetingView() {
             </div>
 
             <div className="mb-4">
-              <label
-                htmlFor="meeting-title"
-                className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-              >
-                Meeting Title
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label
+                  htmlFor="meeting-title"
+                  className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                >
+                  Meeting Title
+                </label>
+                <span className={`text-xs ${title.length > MEETING_TITLE_MAX_LENGTH ? 'text-red-500' : 'text-zinc-400'}`}>
+                  {title.length}/{MEETING_TITLE_MAX_LENGTH}
+                </span>
+              </div>
               <input
                 id="meeting-title"
                 type="text"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={handleTitleChange}
                 placeholder="e.g., Project sync, 1:1, Coffee chat"
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                maxLength={MEETING_TITLE_MAX_LENGTH + 10}
+                className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:bg-zinc-900 dark:text-zinc-100 ${
+                  titleError
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                    : 'border-zinc-300 focus:border-blue-500 focus:ring-blue-500 dark:border-zinc-600'
+                }`}
                 autoFocus
+                disabled={isCreatingMeeting}
               />
+              {titleError && (
+                <p className="mt-1 text-xs text-red-500">{titleError}</p>
+              )}
             </div>
 
             <div className="flex gap-2">
               <button
                 onClick={handleSchedule}
-                disabled={!title.trim()}
+                disabled={!validation.isValid || isCreatingMeeting}
                 className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors ${
-                  title.trim()
+                  validation.isValid && !isCreatingMeeting
                     ? 'bg-blue-500 hover:bg-blue-600'
                     : 'bg-zinc-400 cursor-not-allowed'
                 }`}
               >
-                Schedule Meeting
+                {isCreatingMeeting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Scheduling...
+                  </span>
+                ) : (
+                  'Schedule Meeting'
+                )}
               </button>
               <button
                 onClick={handleCancel}
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                disabled={isCreatingMeeting}
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800 disabled:opacity-50"
               >
                 Back
               </button>
@@ -278,6 +333,7 @@ export function ScheduleMeetingView() {
           currentUserId={currentUserId}
           users={users}
           onCancelMeeting={cancelMeeting}
+          cancellingMeetingId={cancellingMeetingId}
         />
       </div>
     </div>

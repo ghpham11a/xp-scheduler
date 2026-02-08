@@ -70,6 +70,17 @@ export function getDayOfWeekFromDate(dateString: string): number {
   return new Date(dateString).getDay();
 }
 
+export function getDateForDayOfWeek(dayOfWeek: number): string {
+  const today = new Date();
+  const currentDay = today.getDay();
+  const diff = dayOfWeek - currentDay;
+
+  const targetDate = new Date(today);
+  targetDate.setDate(today.getDate() + diff);
+
+  return targetDate.toISOString().split('T')[0];
+}
+
 export function getMeetingsForUser(
   meetings: Meeting[],
   userId: string
@@ -86,6 +97,35 @@ export function getUserInitials(name: string): string {
     .join('')
     .toUpperCase()
     .slice(0, 2);
+}
+
+export function hasTimeSlot(
+  slots: TimeSlot[],
+  dayOfWeek: number,
+  hour: number
+): boolean {
+  const targetDate = getDateForDayOfWeek(dayOfWeek);
+  return slots.some(
+    (slot) =>
+      slot.date === targetDate && hour >= slot.startHour && hour < slot.endHour
+  );
+}
+
+export function getConflictsForSlot(
+  meetings: Meeting[],
+  userId: string,
+  dayOfWeek: number,
+  hour: number
+): Meeting | null {
+  const targetDate = getDateForDayOfWeek(dayOfWeek);
+  return (
+    meetings.find((meeting) => {
+      if (meeting.date !== targetDate) return false;
+      if (meeting.organizerId !== userId && meeting.participantId !== userId)
+        return false;
+      return hour >= meeting.startHour && hour < meeting.endHour;
+    }) ?? null
+  );
 }
 
 export function hasConflict(
