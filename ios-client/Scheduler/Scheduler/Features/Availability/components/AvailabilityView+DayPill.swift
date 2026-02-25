@@ -37,6 +37,10 @@ extension AvailabilityView {
                 isToday ? .blue :
                 .primary
             )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(shortDayName(date)) \(dayOfMonth(date))")
+            .accessibilityValue(isToday ? "Today" : isSelected ? "Selected" : hasAvailability ? "Has availability" : "No availability")
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
         }
     }
 }

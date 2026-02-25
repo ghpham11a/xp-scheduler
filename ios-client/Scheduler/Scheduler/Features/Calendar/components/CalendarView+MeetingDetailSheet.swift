@@ -51,6 +51,7 @@ extension CalendarView {
                     if isOrganizer {
                         Section {
                             Button("Cancel Meeting", role: .destructive, action: onCancel)
+                                .accessibilityHint("Double tap to cancel this meeting")
                         }
                     }
                 }

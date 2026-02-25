@@ -1,74 +1,97 @@
 import SwiftUI
 
-enum AppTab: String, CaseIterable {
-    case calendar = "Calendar"
-    case availability = "Availability"
-    case schedule = "Schedule"
-    case settings = "Settings"
-
-    var icon: String {
-        switch self {
-        case .calendar: "calendar"
-        case .availability: "calendar.badge.clock"
-        case .schedule: "plus.circle"
-        case .settings: "gearshape"
-        }
-    }
-}
-
 struct ContentView: View {
-    let container: DependencyContainer
-
-    @State private var sharedState: SharedState
-    @State private var calendarViewModel: CalendarView.ViewModel
-    @State private var availabilityViewModel: AvailabilityView.ViewModel
-    @State private var scheduleViewModel: ScheduleView.ViewModel
-    @State private var settingsViewModel: SettingsView.ViewModel
-    @State private var selectedTab: AppTab = .calendar
-
-    init(container: DependencyContainer) {
-        self.container = container
-        _sharedState = State(initialValue: container.resolve(SharedState.self))
-        _calendarViewModel = State(initialValue: container.resolve(CalendarView.ViewModel.self))
-        _availabilityViewModel = State(initialValue: container.resolve(AvailabilityView.ViewModel.self))
-        _scheduleViewModel = State(initialValue: container.resolve(ScheduleView.ViewModel.self))
-        _settingsViewModel = State(initialValue: container.resolve(SettingsView.ViewModel.self))
-    }
+    @Environment(RouteManager.self) private var routeManager
+    @Environment(ConnectivityMonitor.self) private var connectivity
+    @Environment(SharedState.self) private var sharedState
+    @ScaledMetric(relativeTo: .title) private var errorIconSize: CGFloat = 48
 
     var body: some View {
+        @Bindable var routeManager = routeManager
+
         VStack(spacing: 0) {
+
+            if !connectivity.isConnected {
+                connectivityBanner
+            }
+
             if sharedState.isLoading {
                 loadingView
             } else if let error = sharedState.error {
                 errorView(error)
             } else {
-                TabView(selection: $selectedTab) {
-                    Tab(AppTab.calendar.rawValue, systemImage: AppTab.calendar.icon, value: .calendar) {
-                        CalendarView(viewModel: calendarViewModel)
+                TabView(selection: $routeManager.selectedTab) {
+                    SwiftUI.Tab(Tab.calendar.rawValue, systemImage: Tab.calendar.icon, value: .calendar) {
+                        CalendarView(viewModel: DependencyContainer.shared.resolve(CalendarViewModel.self))
                     }
 
-                    Tab(AppTab.availability.rawValue, systemImage: AppTab.availability.icon, value: .availability) {
-                        AvailabilityView(viewModel: availabilityViewModel)
+                    SwiftUI.Tab(Tab.availability.rawValue, systemImage: Tab.availability.icon, value: .availability) {
+                        AvailabilityView(viewModel: DependencyContainer.shared.resolve(AvailabilityViewModel.self))
                     }
 
-                    Tab(AppTab.schedule.rawValue, systemImage: AppTab.schedule.icon, value: .schedule) {
-                        ScheduleView(viewModel: scheduleViewModel)
+                    SwiftUI.Tab(Tab.schedule.rawValue, systemImage: Tab.schedule.icon, value: .schedule) {
+                        ScheduleView(viewModel: DependencyContainer.shared.resolve(ScheduleViewModel.self))
                     }
 
-                    Tab(AppTab.settings.rawValue, systemImage: AppTab.settings.icon, value: .settings) {
-                        SettingsView(viewModel: settingsViewModel)
+                    SwiftUI.Tab(Tab.settings.rawValue, systemImage: Tab.settings.icon, value: .settings) {
+                        SettingsView(viewModel: DependencyContainer.shared.resolve(SettingsViewModel.self))
                     }
                 }
             }
         }
-        .alert("Error", isPresented: .init(
-            get: { sharedState.error != nil },
-            set: { if !$0 { sharedState.clearError() } }
-        )) {
-            Button("OK") { sharedState.clearError() }
-        } message: {
-            Text(sharedState.error ?? "")
+        .overlay(alignment: .bottom) {
+            if let mutationError = sharedState.mutationError {
+                mutationErrorToast(mutationError)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .onAppear {
+                        Task {
+                            try? await Task.sleep(for: .seconds(4))
+                            withAnimation { sharedState.clearMutationError() }
+                        }
+                    }
+            }
         }
+        .animation(.easeInOut(duration: 0.3), value: sharedState.mutationError)
+    }
+
+    private func mutationErrorToast(_ message: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.white)
+            Text(message)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+            Spacer()
+            Button {
+                withAnimation { sharedState.clearMutationError() }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption.bold())
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+        }
+        .padding()
+        .background(.red.gradient, in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal)
+        .padding(.bottom, 100)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Error: \(message)")
+        .accessibilityAddTraits(.isStaticText)
+    }
+
+    private var connectivityBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "wifi.slash")
+            Text("No Internet Connection")
+                .font(.subheadline.weight(.medium))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(.red)
+        .foregroundStyle(.white)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("No internet connection")
     }
 
     private var loadingView: some View {
@@ -79,13 +102,15 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
             Spacer()
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Loading content")
     }
 
     private func errorView(_ error: String) -> some View {
         VStack(spacing: 16) {
             Spacer()
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 48))
+                .font(.system(size: errorIconSize))
                 .foregroundStyle(.red)
             Text("Something went wrong")
                 .font(.title3.weight(.medium))

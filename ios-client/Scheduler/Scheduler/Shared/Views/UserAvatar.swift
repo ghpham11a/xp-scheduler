@@ -13,6 +13,8 @@ struct UserAvatar: View {
                     .font(.system(size: size * 0.4, weight: .medium))
                     .foregroundStyle(.white)
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(user.name)
     }
 }
 

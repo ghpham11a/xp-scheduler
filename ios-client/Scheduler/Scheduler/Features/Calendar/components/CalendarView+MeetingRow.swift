@@ -38,6 +38,9 @@ extension CalendarView {
                 .padding(.vertical, 4)
             }
             .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(meeting.title), \(formatTimeRange(meeting.startHour, meeting.endHour, use24Hour: use24HourTime))")
+            .accessibilityHint("Double tap to view details")
         }
     }
 }

@@ -2,61 +2,27 @@ import SwiftUI
 
 struct SettingsView: View {
 
-    @State private var viewModel: ViewModel
+    @State private var viewModel: SettingsViewModel
 
-    init(viewModel: ViewModel) {
+    init(viewModel: SettingsViewModel) {
         _viewModel = State(initialValue: viewModel)
     }
 
     var body: some View {
         NavigationStack {
             List {
-                Section("Account") {
-                    Menu {
-                        ForEach(viewModel.users) { user in
-                            Button {
-                                viewModel.setCurrentUser(user.id)
-                            } label: {
-                                Label {
-                                    VStack(alignment: .leading) {
-                                        Text(user.name)
-                                        Text(user.email)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                } icon: {
-                                    if user.id == viewModel.currentUser?.id {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        HStack {
-                            if let currentUser = viewModel.currentUser {
-                                UserAvatar(user: currentUser, size: 32)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(currentUser.name)
-                                    Text(currentUser.email)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
+                AccountSection(
+                    users: viewModel.users,
+                    currentUser: viewModel.currentUser,
+                    onSelectUser: { viewModel.setCurrentUser($0) }
+                )
 
-                Section("Calendar") {
-                    Toggle("24-Hour Time", isOn: Binding(
+                CalendarSection(
+                    use24HourTime: Binding(
                         get: { viewModel.use24HourTime },
                         set: { viewModel.use24HourTime = $0 }
-                    ))
-                }
+                    )
+                )
             }
             .navigationTitle("Settings")
         }

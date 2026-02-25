@@ -13,7 +13,13 @@ struct SchedulerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(container: container)
+            ContentView()
+                .environment(container.resolve(RouteManager.self))
+                .environment(container.resolve(ConnectivityMonitor.self))
+                .environment(container.resolve(SharedState.self))
+                .onOpenURL { url in
+                    container.resolve(RouteManager.self).handleDeepLink(url)
+                }
         }
     }
 }

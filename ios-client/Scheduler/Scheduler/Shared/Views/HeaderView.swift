@@ -9,7 +9,7 @@ struct HeaderView: View {
                     .frame(width: 32, height: 32)
                     .overlay {
                         Text("S")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.callout.bold())
                             .foregroundStyle(.white)
                     }
                 Text("XP Scheduler")
@@ -20,5 +20,6 @@ struct HeaderView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
+        .accessibilityElement(children: .combine)
     }
 }

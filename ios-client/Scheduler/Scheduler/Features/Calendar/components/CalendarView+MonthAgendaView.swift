@@ -70,6 +70,7 @@ extension CalendarView {
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
                                         .background(.blue, in: Capsule())
+                                        .accessibilityLabel("Today")
                                 }
                             }
                         }

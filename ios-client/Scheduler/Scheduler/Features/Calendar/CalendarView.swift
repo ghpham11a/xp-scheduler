@@ -2,9 +2,11 @@ import SwiftUI
 
 struct CalendarView: View {
 
-    @State private var viewModel: ViewModel
+    @Environment(RouteManager.self) private var routeManager
 
-    init(viewModel: ViewModel) {
+    @State private var viewModel: CalendarViewModel
+
+    init(viewModel: CalendarViewModel) {
         _viewModel = State(initialValue: viewModel)
     }
 
@@ -32,7 +34,21 @@ struct CalendarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            headerSection
+            HeaderSection(
+                showMonthView: showMonthView,
+                monthOffset: monthOffset,
+                weekRangeLabel: weekRangeLabel,
+                meetingCount: selectedDayMeetings.count,
+                onPreviousMonth: { monthOffset -= 1 },
+                onNextMonth: { monthOffset += 1 },
+                onToggleView: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showMonthView.toggle()
+                        monthOffset = 0
+                    }
+                },
+                monthLabel: monthLabel(for: monthOffset)
+            )
             if showMonthView {
                 MonthAgendaView(
                     monthOffset: monthOffset,
@@ -42,10 +58,32 @@ struct CalendarView: View {
                     onMeetingTap: { selectedMeeting = $0 }
                 )
             } else {
-                daySelectorRow
+                DaySelectorRow(
+                    weekDays: weekDays,
+                    selectedDayIndex: selectedDayIndex,
+                    currentUserMeetings: currentUserMeetings,
+                    onSelectDay: { index in
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedDayIndex = index
+                        }
+                    }
+                )
                 Divider()
-                agendaSection
+                AgendaSection(
+                    meetings: selectedDayMeetings,
+                    selectedDay: selectedDay,
+                    use24HourTime: viewModel.use24HourTime,
+                    userById: { viewModel.userById($0) },
+                    onMeetingTap: { selectedMeeting = $0 }
+                )
             }
+        }
+        .onChange(of: routeManager.pendingDeepLink) { _, newValue in
+            guard case .calendarMeeting(let meetingId) = newValue else { return }
+            if let meeting = currentUserMeetings.first(where: { $0.id == meetingId }) {
+                selectedMeeting = meeting
+            }
+            routeManager.pendingDeepLink = nil
         }
         .sheet(item: $selectedMeeting) { meeting in
             MeetingDetailSheet(
@@ -63,47 +101,7 @@ struct CalendarView: View {
         }
     }
 
-    // MARK: - Header
-
-    private var headerSection: some View {
-        HStack {
-            if showMonthView {
-                HStack(spacing: 12) {
-                    Button { monthOffset -= 1 } label: {
-                        Image(systemName: "chevron.left")
-                    }
-                    Text(monthLabel(for: monthOffset))
-                        .font(.title3.weight(.semibold))
-                        .frame(minWidth: 140)
-                    Button { monthOffset += 1 } label: {
-                        Image(systemName: "chevron.right")
-                    }
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(weekRangeLabel)
-                        .font(.title3.weight(.semibold))
-                    Text("\(selectedDayMeetings.count) meeting\(selectedDayMeetings.count == 1 ? "" : "s") today")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showMonthView.toggle()
-                    monthOffset = 0
-                }
-            } label: {
-                Image(systemName: showMonthView ? "calendar.day.timeline.left" : "calendar")
-                    .font(.title3)
-                    .foregroundStyle(.blue)
-            }
-        }
-        .padding(.horizontal)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
-    }
+    // MARK: - Helpers
 
     private var weekRangeLabel: String {
         let f = DateFormatter()
@@ -121,63 +119,5 @@ struct CalendarView: View {
         let f = DateFormatter()
         f.dateFormat = "MMMM yyyy"
         return f.string(from: date)
-    }
-
-    // MARK: - Day Selector
-
-    private var daySelectorRow: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(Array(weekDays.enumerated()), id: \.element) { index, date in
-                        let isSelected = index == selectedDayIndex
-                        let today = isToday(date)
-                        let dateStr = toIsoString(date)
-                        let meetingCount = currentUserMeetings.filter { $0.date == dateStr }.count
-
-                        DayPill(
-                            date: date,
-                            isSelected: isSelected,
-                            isToday: today,
-                            meetingCount: meetingCount
-                        )
-                        .id(index)
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedDayIndex = index
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-            .padding(.vertical, 8)
-        }
-    }
-
-    // MARK: - Agenda
-
-    private var agendaSection: some View {
-        Group {
-            if selectedDayMeetings.isEmpty {
-                ContentUnavailableView(
-                    "No Meetings",
-                    systemImage: "calendar",
-                    description: Text("No meetings scheduled for \(formatDateRelative(selectedDay))")
-                )
-            } else {
-                List {
-                    ForEach(selectedDayMeetings) { meeting in
-                        MeetingRow(
-                            meeting: meeting,
-                            use24HourTime: viewModel.use24HourTime,
-                            userById: { viewModel.userById($0) },
-                            onTap: { selectedMeeting = meeting }
-                        )
-                    }
-                }
-                .listStyle(.insetGrouped)
-            }
-        }
     }
 }

@@ -14,11 +14,16 @@ final class SharedState {
     var meetings: [Meeting] = []
     var isLoading = true
     var error: String?
+    var mutationError: String?
 
-    private let repository: SchedulerRepositoryProtocol
+    private let usersRepo: UsersRepo
+    private let availabilitiesRepo: AvailabilitiesRepo
+    private let meetingsRepo: MeetingsRepo
 
-    init(repository: SchedulerRepositoryProtocol) {
-        self.repository = repository
+    init(usersRepo: UsersRepo, availabilitiesRepo: AvailabilitiesRepo, meetingsRepo: MeetingsRepo) {
+        self.usersRepo = usersRepo
+        self.availabilitiesRepo = availabilitiesRepo
+        self.meetingsRepo = meetingsRepo
         if let saved = UserDefaults.standard.string(forKey: "currentUserId") {
             currentUserId = saved
         }
@@ -30,9 +35,9 @@ final class SharedState {
         isLoading = true
         error = nil
         do {
-            async let usersResult = repository.getUsers()
-            async let availResult = repository.getAvailabilities()
-            async let meetingsResult = repository.getMeetings()
+            async let usersResult = usersRepo.getUsers()
+            async let availResult = availabilitiesRepo.getAvailabilities()
+            async let meetingsResult = meetingsRepo.getMeetings()
 
             let (u, a, m) = try await (usersResult, availResult, meetingsResult)
             users = u
@@ -51,6 +56,10 @@ final class SharedState {
 
     func clearError() {
         error = nil
+    }
+
+    func clearMutationError() {
+        mutationError = nil
     }
 
     // MARK: - Computed Helpers

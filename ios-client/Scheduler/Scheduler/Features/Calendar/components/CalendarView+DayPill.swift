@@ -37,6 +37,10 @@ extension CalendarView {
                 isToday ? .blue :
                 .primary
             )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(shortDayName(date)) \(dayOfMonth(date))")
+            .accessibilityValue(isToday ? "Today" : isSelected ? "Selected" : meetingCount > 0 ? "\(meetingCount) meeting\(meetingCount == 1 ? "" : "s")" : "")
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
         }
     }
 }

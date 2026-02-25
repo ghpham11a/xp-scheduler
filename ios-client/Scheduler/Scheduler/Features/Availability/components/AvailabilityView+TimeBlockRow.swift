@@ -42,6 +42,10 @@ extension AvailabilityView {
                 .background(isAvailable ? Color.blue : Color.clear)
             }
             .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(formatHour(hour, use24Hour: use24HourTime))
+            .accessibilityValue(isAvailable ? "Available" : "Unavailable")
+            .accessibilityHint(isAvailable ? "Double tap to remove availability" : "Double tap to set as available")
         }
     }
 }
