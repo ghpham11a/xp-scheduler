@@ -1,11 +1,10 @@
 package com.example.scheduler.data.repositories
 
-import com.example.scheduler.data.networking.SchedulerApi
-import com.example.scheduler.data.models.Availability
-import com.example.scheduler.data.models.CreateMeetingRequest
-import com.example.scheduler.data.models.Meeting
-import com.example.scheduler.data.models.TimeSlot
-import com.example.scheduler.data.models.User
+import com.example.scheduler.data.model.Availability
+import com.example.scheduler.data.model.CreateMeetingRequest
+import com.example.scheduler.data.model.Meeting
+import com.example.scheduler.data.model.TimeSlot
+import com.example.scheduler.data.model.User
 import javax.inject.Inject
 import javax.inject.Singleton
 

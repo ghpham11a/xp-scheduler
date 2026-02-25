@@ -2,9 +2,9 @@ package com.example.scheduler.features.availability
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.scheduler.data.models.Availability
-import com.example.scheduler.data.models.TimeSlot
-import com.example.scheduler.data.models.User
+import com.example.scheduler.data.model.Availability
+import com.example.scheduler.data.model.TimeSlot
+import com.example.scheduler.data.model.User
 import com.example.scheduler.data.repositories.SchedulerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

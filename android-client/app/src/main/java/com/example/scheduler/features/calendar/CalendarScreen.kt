@@ -4,8 +4,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.scheduler.data.models.Meeting
-import com.example.scheduler.utils.toIsoString
+import com.example.scheduler.data.model.Meeting
+import com.example.scheduler.features.calendar.components.CalendarHeader
+import com.example.scheduler.features.calendar.components.CalendarViewMode
+import com.example.scheduler.features.calendar.components.DayAgendaView
+import com.example.scheduler.features.calendar.components.MeetingDetailsDialog
+import com.example.scheduler.features.calendar.components.MonthAgendaView
+import com.example.scheduler.shared.utils.toIsoString
 import java.time.LocalDate
 import java.time.YearMonth
 

@@ -5,9 +5,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.scheduler.data.models.TimeSlot
-import com.example.scheduler.data.models.User
-import com.example.scheduler.utils.*
+import com.example.scheduler.data.model.User
+import com.example.scheduler.features.availability.components.DayNavigationHeader
+import com.example.scheduler.features.availability.components.DaySelectorRow
+import com.example.scheduler.features.availability.components.VerticalTimeBlocks
+import com.example.scheduler.shared.utils.*
 import kotlinx.coroutines.launch
 
 @Composable

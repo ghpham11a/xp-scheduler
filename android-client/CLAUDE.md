@@ -25,41 +25,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```
 app/src/main/java/com/example/scheduler/
-├── MainActivity.kt              # Entry point, hosts root SchedulerViewModel
-├── SchedulerApplication.kt      # Hilt application class
-├── viewmodel/
-│   └── SchedulerViewModel.kt    # Root state: users, currentUserId, use24HourFormat
-├── features/                    # Feature modules with screen + ViewModel pairs
-│   ├── calendar/                # CalendarScreen, CalendarViewModel, views
-│   ├── availability/            # AvailabilityScreen, AvailabilityViewModel
-│   ├── schedule/                # ScheduleScreen, ScheduleViewModel, wizard steps
-│   └── settings/                # SettingsScreen, SettingsViewModel, sections
+├── app/
+│   ├── SchedulerApp.kt              # Hilt application class
+│   └── MainActivity.kt              # Entry point, hosts MainViewModel
 ├── core/
-│   ├── navigation/AppNavigation.kt   # Bottom nav, screen routing
-│   └── designsystem/theme/           # Color, Theme, Type
-├── shared/components/                # Header, UserAvatar
+│   ├── datastore/
+│   │   └── DataStoreModule.kt       # Provides DataStore<Preferences>
+│   ├── navigation/
+│   │   ├── AppNavigation.kt         # MainScreen, bottom nav, screen routing
+│   │   ├── MainViewModel.kt         # Fetches users, exposes AppPreferences
+│   │   └── Tabs.kt                  # AppScreen enum (tab definitions)
+│   └── networking/
+│       └── NetworkModule.kt         # Provides Retrofit, Moshi, OkHttpClient
 ├── data/
-│   ├── models/                       # User, Meeting, TimeSlot, Availability, etc.
-│   ├── networking/ApiService.kt      # SchedulerApi interface (Retrofit)
-│   └── repositories/SchedulerRepository.kt
-├── di/                               # Hilt modules
-│   ├── NetworkModule.kt              # Provides Retrofit, Moshi, OkHttpClient
-│   └── DataStoreModule.kt            # Provides DataStore<Preferences>
-└── utils/Utils.kt                    # Time formatting, slot logic
+│   ├── model/                       # User, Meeting, TimeSlot, Availability, etc.
+│   └── repositories/
+│       ├── SchedulerRepository.kt   # Repository with Result-wrapped API calls
+│       └── SchedulerEndpoints.kt    # SchedulerApi interface (Retrofit)
+├── features/                        # Feature modules with screen + ViewModel pairs
+│   ├── calendar/                    # CalendarScreen, CalendarViewModel, components/
+│   ├── availability/                # AvailabilityScreen, AvailabilityViewModel, components/
+│   ├── schedule/                    # ScheduleScreen, ScheduleViewModel, components/
+│   └── settings/                    # SettingsScreen, SettingsViewModel, components/
+└── shared/
+    ├── components/                  # Header, UserAvatar
+    ├── state/
+    │   └── AppPreferences.kt        # Singleton for currentUserId, use24HourFormat
+    ├── theme/                       # Color, Theme, Type
+    └── utils/                       # Time formatting, slot logic
 ```
 
-### ViewModel Architecture
+### State Management
 
-Each screen has its own `@HiltViewModel` that:
+**AppPreferences** (`shared/state/AppPreferences.kt`) is a singleton that manages user preferences:
+- `currentUserId: Flow<String>` - Currently selected user
+- `use24HourFormat: Flow<Boolean>` - 24-hour time preference
+- Persists to DataStore automatically
+
+**MainViewModel** (`core/navigation/MainViewModel.kt`) is the root ViewModel:
+- Fetches users list for the header
+- Exposes `AppPreferences` flows as StateFlows
+- Handles initial loading/error states
+
+Each feature screen has its own `@HiltViewModel` that:
 - Injects `SchedulerRepository` for API calls
+- Injects `AppPreferences` when needed (e.g., SettingsViewModel)
 - Manages screen-specific state with `StateFlow`
 - Implements optimistic updates with error recovery
 
-The root `SchedulerViewModel` provides shared state (users, currentUserId, use24HourFormat) that screens access.
-
 ```
 MainActivity
-  └── SchedulerViewModel (root: users, currentUserId, use24HourFormat, isLoading)
+  └── MainViewModel (users, loading/error, exposes AppPreferences)
        └── MainScreen
             ├── CalendarScreen + CalendarViewModel
             ├── AvailabilityScreen + AvailabilityViewModel
@@ -74,9 +90,7 @@ The API URL is configured via BuildConfig in `app/build.gradle.kts`:
 buildConfigField("String", "API_URL", "\"https://your-api.ngrok.io/\"")
 ```
 
-The URL is consumed in `di/NetworkModule.kt`. For emulator connecting to host localhost, change to `http://10.0.2.2:6969/`.
-
-Note: `ApiService.kt` contains a legacy `ApiClient` object with hardcoded URL - this is not used when DI is enabled. Use `NetworkModule` for configuration.
+The URL is consumed in `core/networking/NetworkModule.kt`. For emulator connecting to host localhost, change to `http://10.0.2.2:6969/`.
 
 ### Key Data Types
 
@@ -107,4 +121,4 @@ All ViewModels use optimistic updates:
 2. Call API
 3. On error, refetch from API to restore correct state
 
-DataStore persists `currentUserId` and `use24HourFormat` across app restarts (handled in root `SchedulerViewModel`).
+`AppPreferences` persists `currentUserId` and `use24HourFormat` across app restarts via DataStore.
