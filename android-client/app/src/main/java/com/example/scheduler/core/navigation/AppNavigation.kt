@@ -7,35 +7,28 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.example.scheduler.data.models.User
+import com.example.scheduler.data.model.User
 import com.example.scheduler.shared.components.Header
 import com.example.scheduler.features.availability.AvailabilityScreen
 import com.example.scheduler.features.calendar.CalendarScreen
 import com.example.scheduler.features.schedule.ScheduleScreen
 import com.example.scheduler.features.settings.SettingsScreen
-import com.example.scheduler.viewmodel.SchedulerState
-
-enum class AppScreen(
-    val title: String,
-    val icon: ImageVector
-) {
-    CALENDAR("Calendar", Icons.Default.CalendarMonth),
-    AVAILABILITY("Availability", Icons.Default.EventAvailable),
-    SCHEDULE("Schedule", Icons.Default.Add),
-    SETTINGS("Settings", Icons.Default.Settings)
-}
 
 @Composable
 fun MainScreen(
-    state: SchedulerState,
+    users: List<User>,
+    currentUserId: String,
+    use24HourFormat: Boolean,
+    isLoading: Boolean,
+    error: String?,
     onUserSelected: (String) -> Unit,
-    onUse24HourFormatChanged: (Boolean) -> Unit
+    onUse24HourFormatChanged: (Boolean) -> Unit,
+    onRetry: () -> Unit
 ) {
     var currentScreen by remember { mutableStateOf(AppScreen.CALENDAR) }
 
-    val currentUser = state.users.find { it.id == state.currentUserId }
+    val currentUser = users.find { it.id == currentUserId }
 
     Scaffold(
         topBar = {
@@ -60,32 +53,32 @@ fun MainScreen(
                 .padding(paddingValues)
         ) {
             when {
-                state.isLoading -> {
+                isLoading -> {
                     LoadingScreen()
                 }
-                state.error != null -> {
+                error != null -> {
                     ErrorScreen(
-                        error = state.error,
-                        onRetry = { /* Will be handled by ViewModel */ }
+                        error = error,
+                        onRetry = onRetry
                     )
                 }
                 else -> {
                     when (currentScreen) {
                         AppScreen.CALENDAR -> CalendarScreen(
-                            currentUserId = state.currentUserId,
-                            use24HourFormat = state.use24HourFormat
+                            currentUserId = currentUserId,
+                            use24HourFormat = use24HourFormat
                         )
                         AppScreen.AVAILABILITY -> AvailabilityScreen(
-                            currentUserId = state.currentUserId,
+                            currentUserId = currentUserId,
                             currentUser = currentUser,
-                            use24HourFormat = state.use24HourFormat
+                            use24HourFormat = use24HourFormat
                         )
                         AppScreen.SCHEDULE -> ScheduleScreen(
-                            currentUserId = state.currentUserId,
-                            use24HourFormat = state.use24HourFormat
+                            currentUserId = currentUserId,
+                            use24HourFormat = use24HourFormat
                         )
                         AppScreen.SETTINGS -> SettingsScreen(
-                            currentUserId = state.currentUserId,
+                            currentUserId = currentUserId,
                             onUserChanged = onUserSelected,
                             onUse24HourFormatChanged = onUse24HourFormatChanged
                         )

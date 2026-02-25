@@ -1,11 +1,21 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+
+    // Hilt Requirements
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
 
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        load(localPropertiesFile.inputStream())
+    }
+}
 
 android {
     namespace = "com.example.scheduler"
@@ -22,7 +32,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "API_URL", "\"https://feedback-test.ngrok.io/\"")
+        buildConfigField("String", "API_URL", "\"https://xp-server.ngrok.dev/\"")
 
     }
 
@@ -66,22 +76,19 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
+    // Standard: Navigation
+    implementation(libs.androidx.navigation.compose)
+    // Standard: ViewModel
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    // Standard: Coroutines
+    implementation(libs.kotlinx.coroutines.android)
+    // Standard: DataStore for preferences
+    implementation(libs.androidx.datastore.preferences)
+
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
-
-    // Navigation
-    implementation(libs.androidx.navigation.compose)
-
-    // ViewModel
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
-
-    // DataStore for preferences
-    implementation(libs.androidx.datastore.preferences)
-
-    // Coroutines
-    implementation(libs.kotlinx.coroutines.android)
 
     // Networking
     implementation(libs.retrofit)

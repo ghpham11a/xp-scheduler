@@ -6,8 +6,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.scheduler.data.models.User
-import com.example.scheduler.utils.MeetingDuration
+import com.example.scheduler.data.model.User
+import com.example.scheduler.features.schedule.components.ConfirmationScreen
+import com.example.scheduler.features.schedule.components.MeetingListSection
+import com.example.scheduler.features.schedule.components.ParticipantSelection
+import com.example.scheduler.features.schedule.components.ScheduleStep
+import com.example.scheduler.features.schedule.components.TimeSlotSelection
+import com.example.scheduler.shared.utils.MeetingDuration
 
 @Composable
 fun ScheduleScreen(

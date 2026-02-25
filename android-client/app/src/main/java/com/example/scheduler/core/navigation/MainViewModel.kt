@@ -1,4 +1,4 @@
-package com.example.scheduler.features.settings
+package com.example.scheduler.core.navigation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,20 +15,20 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class SettingsState(
+data class MainState(
     val users: List<User> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null
 )
 
 @HiltViewModel
-class SettingsViewModel @Inject constructor(
+class MainViewModel @Inject constructor(
     private val repository: SchedulerRepository,
     private val appPreferences: AppPreferences
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(SettingsState())
-    val state: StateFlow<SettingsState> = _state.asStateFlow()
+    private val _state = MutableStateFlow(MainState())
+    val state: StateFlow<MainState> = _state.asStateFlow()
 
     val currentUserId: StateFlow<String> = appPreferences.currentUserId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
@@ -45,7 +45,13 @@ class SettingsViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true, error = null) }
             repository.getUsers()
                 .onSuccess { users ->
-                    _state.update { it.copy(users = users, isLoading = false) }
+                    _state.update { current ->
+                        current.copy(users = users, isLoading = false)
+                    }
+                    // Set default user if none selected
+                    if (currentUserId.value.isEmpty() && users.isNotEmpty()) {
+                        setCurrentUser(users.first().id)
+                    }
                 }
                 .onFailure { e ->
                     _state.update {
@@ -65,5 +71,9 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             appPreferences.setUse24HourFormat(use24Hour)
         }
+    }
+
+    fun retry() {
+        fetchUsers()
     }
 }
