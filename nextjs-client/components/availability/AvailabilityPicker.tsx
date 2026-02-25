@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { TimeSlot } from '@/types';
 import { formatTime } from '@/lib/utils';
+import { useSchedulerStore } from '@/lib/store';
 
 interface AvailabilityPickerProps {
   slots: TimeSlot[];
@@ -87,6 +88,7 @@ function mergeAdjacentSlotsForDate(slots: TimeSlot[]): TimeSlot[] {
 }
 
 export function AvailabilityPicker({ slots, onSlotsChange }: AvailabilityPickerProps) {
+  const { use24HourTime } = useSchedulerStore();
   const upcomingDates = useMemo(() => getUpcomingDates(), []);
   const timeBlocks = generateTimeBlocks();
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
@@ -120,59 +122,6 @@ export function AvailabilityPicker({ slots, onSlotsChange }: AvailabilityPickerP
         newSlots = [...slots, { date, startHour, endHour }];
       }
 
-      onSlotsChange(mergeAdjacentSlotsForDate(newSlots));
-    },
-    [slots, onSlotsChange]
-  );
-
-  const selectAllDay = useCallback(
-    (date: string) => {
-      let newSlots = slots.filter((s) => s.date !== date);
-      newSlots.push({ date, startHour: 0, endHour: 24 });
-      onSlotsChange(mergeAdjacentSlotsForDate(newSlots));
-    },
-    [slots, onSlotsChange]
-  );
-
-  const clearDay = useCallback(
-    (date: string) => {
-      const newSlots = slots.filter((s) => s.date !== date);
-      onSlotsChange(newSlots);
-    },
-    [slots, onSlotsChange]
-  );
-
-  const selectMorning = useCallback(
-    (date: string) => {
-      let newSlots = slots.filter((s) => s.date !== date);
-      newSlots.push({ date, startHour: 6, endHour: 12 });
-      onSlotsChange(mergeAdjacentSlotsForDate(newSlots));
-    },
-    [slots, onSlotsChange]
-  );
-
-  const selectAfternoon = useCallback(
-    (date: string) => {
-      let newSlots = slots.filter((s) => s.date !== date);
-      newSlots.push({ date, startHour: 12, endHour: 18 });
-      onSlotsChange(mergeAdjacentSlotsForDate(newSlots));
-    },
-    [slots, onSlotsChange]
-  );
-
-  const selectEvening = useCallback(
-    (date: string) => {
-      let newSlots = slots.filter((s) => s.date !== date);
-      newSlots.push({ date, startHour: 18, endHour: 22 });
-      onSlotsChange(mergeAdjacentSlotsForDate(newSlots));
-    },
-    [slots, onSlotsChange]
-  );
-
-  const selectBusinessHours = useCallback(
-    (date: string) => {
-      let newSlots = slots.filter((s) => s.date !== date);
-      newSlots.push({ date, startHour: 9, endHour: 17 });
       onSlotsChange(mergeAdjacentSlotsForDate(newSlots));
     },
     [slots, onSlotsChange]
@@ -264,46 +213,6 @@ export function AvailabilityPicker({ slots, onSlotsChange }: AvailabilityPickerP
         </button>
       </div>
 
-      {/* Quick actions */}
-      <div className="flex flex-wrap gap-2 justify-center">
-        <button
-          onClick={() => selectAllDay(currentDay.dateString)}
-          className="px-3 py-1.5 text-sm rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:hover:bg-blue-900/60"
-        >
-          All Day
-        </button>
-        <button
-          onClick={() => selectBusinessHours(currentDay.dateString)}
-          className="px-3 py-1.5 text-sm rounded-full bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
-        >
-          9-5
-        </button>
-        <button
-          onClick={() => selectMorning(currentDay.dateString)}
-          className="px-3 py-1.5 text-sm rounded-full bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
-        >
-          Morning
-        </button>
-        <button
-          onClick={() => selectAfternoon(currentDay.dateString)}
-          className="px-3 py-1.5 text-sm rounded-full bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
-        >
-          Afternoon
-        </button>
-        <button
-          onClick={() => selectEvening(currentDay.dateString)}
-          className="px-3 py-1.5 text-sm rounded-full bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
-        >
-          Evening
-        </button>
-        <button
-          onClick={() => clearDay(currentDay.dateString)}
-          className="px-3 py-1.5 text-sm rounded-full bg-zinc-100 text-zinc-500 hover:bg-red-100 hover:text-red-600 dark:bg-zinc-700 dark:text-zinc-400 dark:hover:bg-red-900/40 dark:hover:text-red-400"
-        >
-          Clear
-        </button>
-      </div>
-
       {/* Vertical time blocks */}
       <div className="max-h-[50vh] overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
         {timeBlocks.map((startHour) => {
@@ -326,7 +235,7 @@ export function AvailabilityPicker({ slots, onSlotsChange }: AvailabilityPickerP
                 w-16 text-left font-medium
                 ${isAvailable ? 'text-white' : isHourMark ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-500'}
               `}>
-                {formatTime(startHour)}
+                {formatTime(startHour, use24HourTime)}
               </span>
               <div className="flex-1 h-1 mx-3 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                 {isAvailable && <div className="h-full bg-white/30 w-full" />}

@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 fun AvailabilityScreen(
     currentUserId: String,
     currentUser: User?,
+    use24HourFormat: Boolean = false,
     viewModel: AvailabilityViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -81,25 +82,11 @@ fun AvailabilityScreen(
             }
         )
 
-        // Quick action presets
-        QuickActionButtons(
-            onPresetSelected = { preset ->
-                val dateStr = currentDay.toIsoString()
-                localSlots = localSlots.filter { it.date != dateStr } +
-                        TimeSlot(dateStr, preset.startHour, preset.endHour)
-                viewModel.setAvailability(currentUserId, mergeTimeSlots(localSlots))
-            },
-            onClear = {
-                val dateStr = currentDay.toIsoString()
-                localSlots = localSlots.filter { it.date != dateStr }
-                viewModel.setAvailability(currentUserId, mergeTimeSlots(localSlots))
-            }
-        )
-
         // Vertical time blocks
         VerticalTimeBlocks(
             date = currentDay,
             slots = currentDaySlots,
+            use24HourFormat = use24HourFormat,
             onSlotsChanged = { newSlots ->
                 val dateStr = currentDay.toIsoString()
                 localSlots = localSlots.filter { it.date != dateStr } + newSlots

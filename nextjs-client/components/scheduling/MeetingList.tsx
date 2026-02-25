@@ -3,6 +3,7 @@
 import { Meeting, User } from '@/types';
 import { DAYS_OF_WEEK } from '@/lib/constants';
 import { formatTimeRange, getDayOfWeekFromDate, getUserInitials } from '@/lib/utils';
+import { useSchedulerStore } from '@/lib/store';
 
 interface MeetingListProps {
   meetings: Meeting[];
@@ -19,6 +20,7 @@ export function MeetingList({
   onCancelMeeting,
   cancellingMeetingId,
 }: MeetingListProps) {
+  const { use24HourTime } = useSchedulerStore();
   if (meetings.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-zinc-300 p-6 text-center dark:border-zinc-700">
@@ -70,7 +72,7 @@ export function MeetingList({
                 </h4>
                 <div className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
                   {DAYS_OF_WEEK[dayOfWeek]} {meeting.date} &bull;{' '}
-                  {formatTimeRange(meeting.startHour, meeting.endHour)}
+                  {formatTimeRange(meeting.startHour, meeting.endHour, use24HourTime)}
                 </div>
                 <div className="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">
                   {isOrganizer ? (

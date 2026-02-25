@@ -24,6 +24,7 @@ data class SchedulerState(
     val users: List<User> = emptyList(),
     val availabilities: List<Availability> = emptyList(),
     val meetings: List<Meeting> = emptyList(),
+    val use24HourFormat: Boolean = false,
     val isLoading: Boolean = true,
     val error: String? = null
 )
@@ -42,19 +43,33 @@ class SchedulerViewModel @Inject constructor(
     val state: StateFlow<SchedulerState> = _state.asStateFlow()
 
     private val CURRENT_USER_KEY = stringPreferencesKey("current_user_id")
+    private val USE_24_HOUR_FORMAT_KEY = stringPreferencesKey("use_24_hour_format")
 
     init {
-        loadPersistedUserId()
+        loadPersistedSettings()
         fetchData()
     }
 
-    private fun loadPersistedUserId() {
+    private fun loadPersistedSettings() {
         viewModelScope.launch {
             dataStore.data.first().let { prefs ->
                 val userId = prefs[CURRENT_USER_KEY]
-                if (userId != null) {
-                    _state.update { it.copy(currentUserId = userId) }
+                val use24HourFormat = prefs[USE_24_HOUR_FORMAT_KEY]?.toBoolean() ?: false
+                _state.update {
+                    it.copy(
+                        currentUserId = userId ?: "",
+                        use24HourFormat = use24HourFormat
+                    )
                 }
+            }
+        }
+    }
+
+    fun setUse24HourFormat(use24Hour: Boolean) {
+        _state.update { it.copy(use24HourFormat = use24Hour) }
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                prefs[USE_24_HOUR_FORMAT_KEY] = use24Hour.toString()
             }
         }
     }

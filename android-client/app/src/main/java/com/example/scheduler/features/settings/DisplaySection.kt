@@ -7,16 +7,16 @@ import androidx.compose.runtime.Composable
 
 @Composable
 fun DisplaySettingsItem(
-    showAllHours: Boolean,
-    onShowAllHoursChange: (Boolean) -> Unit
+    use24HourFormat: Boolean,
+    onUse24HourFormatChange: (Boolean) -> Unit
 ) {
     ListItem(
-        headlineContent = { Text("Show 24-hour time range") },
-        supportingContent = { Text("Display full day instead of 6 AM - 10 PM") },
+        headlineContent = { Text("Use 24-hour format") },
+        supportingContent = { Text("Display times as 14:00 instead of 2:00 PM") },
         trailingContent = {
             Switch(
-                checked = showAllHours,
-                onCheckedChange = onShowAllHoursChange
+                checked = use24HourFormat,
+                onCheckedChange = onUse24HourFormatChange
             )
         }
     )

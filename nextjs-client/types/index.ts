@@ -37,6 +37,8 @@ export interface SchedulerState {
   isSavingAvailability: boolean;
   isCreatingMeeting: boolean;
   cancellingMeetingId: string | null;
+  // Settings
+  use24HourTime: boolean;
 }
 
 export interface SchedulerActions {
@@ -45,4 +47,5 @@ export interface SchedulerActions {
   setAvailability: (userId: string, slots: TimeSlot[]) => Promise<void>;
   addMeeting: (meeting: Omit<Meeting, 'id'>) => Promise<void>;
   cancelMeeting: (meetingId: string) => Promise<void>;
+  setUse24HourTime: (value: boolean) => void;
 }

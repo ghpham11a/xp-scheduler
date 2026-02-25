@@ -26,6 +26,9 @@ class MainActivity : ComponentActivity() {
                     state = state,
                     onUserSelected = { userId ->
                         viewModel.setCurrentUser(userId)
+                    },
+                    onUse24HourFormatChanged = { use24Hour ->
+                        viewModel.setUse24HourFormat(use24Hour)
                     }
                 )
             }

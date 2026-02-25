@@ -22,6 +22,7 @@ import com.example.scheduler.utils.formatHour
 fun MeetingRow(
     meeting: Meeting,
     getUserById: (String) -> User?,
+    use24HourFormat: Boolean = false,
     onClick: () -> Unit
 ) {
     val otherUser = getUserById(meeting.participantId) ?: getUserById(meeting.organizerId)
@@ -55,7 +56,7 @@ fun MeetingRow(
             horizontalAlignment = Alignment.End
         ) {
             Text(
-                text = formatHour(meeting.startHour),
+                text = formatHour(meeting.startHour, use24HourFormat),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium
             )

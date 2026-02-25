@@ -12,6 +12,7 @@ import java.time.YearMonth
 @Composable
 fun CalendarScreen(
     currentUserId: String,
+    use24HourFormat: Boolean = false,
     viewModel: CalendarViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -64,12 +65,14 @@ fun CalendarScreen(
                 CalendarViewMode.DAY -> DayAgendaView(
                     meetings = dayMeetings,
                     getUserById = { viewModel.getUserById(it) },
+                    use24HourFormat = use24HourFormat,
                     onMeetingClick = { selectedMeeting = it }
                 )
                 CalendarViewMode.MONTH -> MonthAgendaView(
                     meetingsByDate = monthMeetingsByDate,
                     today = today,
                     getUserById = { viewModel.getUserById(it) },
+                    use24HourFormat = use24HourFormat,
                     onMeetingClick = { selectedMeeting = it }
                 )
             }
@@ -82,6 +85,7 @@ fun CalendarScreen(
             meeting = meeting,
             getUserById = { viewModel.getUserById(it) },
             currentUserId = currentUserId,
+            use24HourFormat = use24HourFormat,
             onDismiss = { selectedMeeting = null },
             onCancel = {
                 viewModel.cancelMeeting(meeting.id)

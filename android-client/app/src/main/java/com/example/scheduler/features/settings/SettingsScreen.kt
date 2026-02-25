@@ -13,6 +13,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun SettingsScreen(
     currentUserId: String,
     onUserChanged: (String) -> Unit,
+    onUse24HourFormatChanged: (Boolean) -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -56,8 +57,11 @@ fun SettingsScreen(
 
         item {
             DisplaySettingsItem(
-                showAllHours = state.showAllHours,
-                onShowAllHoursChange = { viewModel.setShowAllHours(it) }
+                use24HourFormat = state.use24HourFormat,
+                onUse24HourFormatChange = {
+                    viewModel.setUse24HourFormat(it)
+                    onUse24HourFormatChanged(it)
+                }
             )
         }
 

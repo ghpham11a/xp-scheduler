@@ -30,7 +30,8 @@ enum class AppScreen(
 @Composable
 fun MainScreen(
     state: SchedulerState,
-    onUserSelected: (String) -> Unit
+    onUserSelected: (String) -> Unit,
+    onUse24HourFormatChanged: (Boolean) -> Unit
 ) {
     var currentScreen by remember { mutableStateOf(AppScreen.CALENDAR) }
 
@@ -71,18 +72,22 @@ fun MainScreen(
                 else -> {
                     when (currentScreen) {
                         AppScreen.CALENDAR -> CalendarScreen(
-                            currentUserId = state.currentUserId
+                            currentUserId = state.currentUserId,
+                            use24HourFormat = state.use24HourFormat
                         )
                         AppScreen.AVAILABILITY -> AvailabilityScreen(
                             currentUserId = state.currentUserId,
-                            currentUser = currentUser
+                            currentUser = currentUser,
+                            use24HourFormat = state.use24HourFormat
                         )
                         AppScreen.SCHEDULE -> ScheduleScreen(
-                            currentUserId = state.currentUserId
+                            currentUserId = state.currentUserId,
+                            use24HourFormat = state.use24HourFormat
                         )
                         AppScreen.SETTINGS -> SettingsScreen(
                             currentUserId = state.currentUserId,
-                            onUserChanged = onUserSelected
+                            onUserChanged = onUserSelected,
+                            onUse24HourFormatChanged = onUse24HourFormatChanged
                         )
                     }
                 }

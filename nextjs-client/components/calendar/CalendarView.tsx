@@ -24,12 +24,8 @@ function getMonthDates(year: number, month: number): string[] {
   return dates;
 }
 
-interface CalendarViewProps {
-  showAllHours: boolean;
-}
-
-export function CalendarView({ showAllHours }: CalendarViewProps) {
-  const { currentUserId, users, meetings, cancelMeeting, cancellingMeetingId } = useSchedulerStore();
+export function CalendarView() {
+  const { currentUserId, users, meetings, cancelMeeting, cancellingMeetingId, use24HourTime } = useSchedulerStore();
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
@@ -236,6 +232,7 @@ export function CalendarView({ showAllHours }: CalendarViewProps) {
                     meeting={meeting}
                     otherUser={getOtherUser(meeting)}
                     onClick={() => setSelectedMeeting(meeting)}
+                    use24HourTime={use24HourTime}
                   />
                 ))}
               </div>
@@ -290,6 +287,7 @@ export function CalendarView({ showAllHours }: CalendarViewProps) {
                             meeting={meeting}
                             otherUser={getOtherUser(meeting)}
                             onClick={() => setSelectedMeeting(meeting)}
+                            use24HourTime={use24HourTime}
                           />
                         ))}
                       </div>
@@ -323,6 +321,7 @@ export function CalendarView({ showAllHours }: CalendarViewProps) {
           onClose={() => setSelectedMeeting(null)}
           onCancel={() => handleCancelMeeting(selectedMeeting.id)}
           isCancelling={cancellingMeetingId === selectedMeeting.id}
+          use24HourTime={use24HourTime}
         />
       )}
     </div>
@@ -333,11 +332,13 @@ export function CalendarView({ showAllHours }: CalendarViewProps) {
 function MeetingRow({
   meeting,
   otherUser,
-  onClick
+  onClick,
+  use24HourTime
 }: {
   meeting: Meeting;
   otherUser: { id: string; name: string; email: string; avatarColor: string } | undefined;
   onClick: () => void;
+  use24HourTime: boolean;
 }) {
   const duration = meeting.endHour - meeting.startHour;
 
@@ -355,7 +356,7 @@ function MeetingRow({
       {/* Time */}
       <div className="w-20 shrink-0 px-3 py-3 text-right">
         <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-          {formatTime(meeting.startHour)}
+          {formatTime(meeting.startHour, use24HourTime)}
         </div>
         <div className="text-xs text-zinc-400 dark:text-zinc-500">
           {duration}h
@@ -398,6 +399,7 @@ function MeetingModal({
   onClose,
   onCancel,
   isCancelling,
+  use24HourTime,
 }: {
   meeting: Meeting;
   currentUserId: string;
@@ -405,6 +407,7 @@ function MeetingModal({
   onClose: () => void;
   onCancel: () => void;
   isCancelling?: boolean;
+  use24HourTime: boolean;
 }) {
   return (
     <div
@@ -470,7 +473,7 @@ function MeetingModal({
                 })}
               </div>
               <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                {formatTime(meeting.startHour)} - {formatTime(meeting.endHour)}
+                {formatTime(meeting.startHour, use24HourTime)} - {formatTime(meeting.endHour, use24HourTime)}
                 <span className="ml-2">
                   ({meeting.endHour - meeting.startHour} hour{meeting.endHour - meeting.startHour !== 1 ? 's' : ''})
                 </span>

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { User, Meeting } from '@/types';
 import { DAYS_OF_WEEK } from '@/lib/constants';
 import { formatTimeRange, getDateForDayOfWeek, hasConflict } from '@/lib/utils';
+import { useSchedulerStore } from '@/lib/store';
 
 const DURATION_OPTIONS = [
   { value: 0.25, label: '15 min' },
@@ -31,6 +32,7 @@ export function MeetingForm({
   onSchedule,
   onCancel,
 }: MeetingFormProps) {
+  const { use24HourTime } = useSchedulerStore();
   const [title, setTitle] = useState('');
   const [duration, setDuration] = useState(0.5);
 
@@ -84,7 +86,7 @@ export function MeetingForm({
 
       <div className="mb-4 rounded-lg bg-white p-3 dark:bg-zinc-900">
         <div className="text-sm text-zinc-500 dark:text-zinc-400">
-          {DAYS_OF_WEEK[selectedSlot.day]} at {formatTimeRange(selectedSlot.hour, selectedSlot.hour + duration)}
+          {DAYS_OF_WEEK[selectedSlot.day]} at {formatTimeRange(selectedSlot.hour, selectedSlot.hour + duration, use24HourTime)}
         </div>
         <div className="mt-1 flex items-center gap-2">
           <div

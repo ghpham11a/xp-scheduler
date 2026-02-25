@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./gradlew assembleDebug           # Build debug APK
 ./gradlew installDebug            # Install on connected device/emulator
 ./gradlew test                    # Run unit tests
+./gradlew test --tests "ClassName.methodName"  # Run single test
 ./gradlew connectedAndroidTest    # Run instrumented tests
 ```
 
@@ -27,31 +28,23 @@ app/src/main/java/com/example/scheduler/
 ├── MainActivity.kt              # Entry point, hosts root SchedulerViewModel
 ├── SchedulerApplication.kt      # Hilt application class
 ├── viewmodel/
-│   └── SchedulerViewModel.kt    # Root state: users, currentUserId, loading/error
-├── features/                    # Each screen has its own ViewModel
-│   ├── calendar/
-│   │   ├── CalendarScreen.kt
-│   │   └── CalendarViewModel.kt
-│   ├── availability/
-│   │   ├── AvailabilityScreen.kt
-│   │   └── AvailabilityViewModel.kt
-│   ├── schedule/
-│   │   ├── ScheduleScreen.kt
-│   │   └── ScheduleViewModel.kt
-│   └── settings/
-│       ├── SettingsScreen.kt
-│       └── SettingsViewModel.kt
+│   └── SchedulerViewModel.kt    # Root state: users, currentUserId, use24HourFormat
+├── features/                    # Feature modules with screen + ViewModel pairs
+│   ├── calendar/                # CalendarScreen, CalendarViewModel, views
+│   ├── availability/            # AvailabilityScreen, AvailabilityViewModel
+│   ├── schedule/                # ScheduleScreen, ScheduleViewModel, wizard steps
+│   └── settings/                # SettingsScreen, SettingsViewModel, sections
 ├── core/
 │   ├── navigation/AppNavigation.kt   # Bottom nav, screen routing
 │   └── designsystem/theme/           # Color, Theme, Type
 ├── shared/components/                # Header, UserAvatar
 ├── data/
-│   ├── models/                       # User, Meeting, TimeSlot, Availability
-│   ├── networking/ApiService.kt      # Retrofit API interface
+│   ├── models/                       # User, Meeting, TimeSlot, Availability, etc.
+│   ├── networking/ApiService.kt      # SchedulerApi interface (Retrofit)
 │   └── repositories/SchedulerRepository.kt
 ├── di/                               # Hilt modules
-│   ├── NetworkModule.kt
-│   └── DataStoreModule.kt
+│   ├── NetworkModule.kt              # Provides Retrofit, Moshi, OkHttpClient
+│   └── DataStoreModule.kt            # Provides DataStore<Preferences>
 └── utils/Utils.kt                    # Time formatting, slot logic
 ```
 
@@ -62,11 +55,11 @@ Each screen has its own `@HiltViewModel` that:
 - Manages screen-specific state with `StateFlow`
 - Implements optimistic updates with error recovery
 
-The root `SchedulerViewModel` provides shared state (users, currentUserId) that screens access.
+The root `SchedulerViewModel` provides shared state (users, currentUserId, use24HourFormat) that screens access.
 
 ```
 MainActivity
-  └── SchedulerViewModel (root: users, currentUserId, isLoading)
+  └── SchedulerViewModel (root: users, currentUserId, use24HourFormat, isLoading)
        └── MainScreen
             ├── CalendarScreen + CalendarViewModel
             ├── AvailabilityScreen + AvailabilityViewModel
@@ -76,12 +69,14 @@ MainActivity
 
 ### API Configuration
 
-The API URL is configured in `app/build.gradle.kts`:
+The API URL is configured via BuildConfig in `app/build.gradle.kts`:
 ```kotlin
 buildConfigField("String", "API_URL", "\"https://your-api.ngrok.io/\"")
 ```
 
-For emulator connecting to host localhost, use `10.0.2.2:6969`.
+The URL is consumed in `di/NetworkModule.kt`. For emulator connecting to host localhost, change to `http://10.0.2.2:6969/`.
+
+Note: `ApiService.kt` contains a legacy `ApiClient` object with hardcoded URL - this is not used when DI is enabled. Use `NetworkModule` for configuration.
 
 ### Key Data Types
 
@@ -112,4 +107,4 @@ All ViewModels use optimistic updates:
 2. Call API
 3. On error, refetch from API to restore correct state
 
-DataStore persists `currentUserId` across app restarts (handled in `SettingsViewModel`).
+DataStore persists `currentUserId` and `use24HourFormat` across app restarts (handled in root `SchedulerViewModel`).

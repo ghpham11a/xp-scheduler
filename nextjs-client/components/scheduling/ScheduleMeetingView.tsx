@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useSchedulerStore } from '@/lib/store';
-import { getMeetingsForUser, getUserInitials } from '@/lib/utils';
+import { getMeetingsForUser, getUserInitials, formatTime } from '@/lib/utils';
 import { validateMeetingTitle, MEETING_TITLE_MAX_LENGTH } from '@/lib/validation';
 import { TimeSlotPicker } from './TimeSlotPicker';
 import { MeetingList } from './MeetingList';
@@ -26,6 +26,7 @@ export function ScheduleMeetingView() {
     cancelMeeting,
     isCreatingMeeting,
     cancellingMeetingId,
+    use24HourTime,
   } = useSchedulerStore();
 
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -109,16 +110,7 @@ export function ScheduleMeetingView() {
     const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
     const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-    const formatHour = (h: number) => {
-      const totalMin = Math.round(h * 60);
-      const hours = Math.floor(totalMin / 60);
-      const mins = totalMin % 60;
-      const period = hours >= 12 ? 'PM' : 'AM';
-      const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-      return mins === 0 ? `${displayHour}${period}` : `${displayHour}:${mins.toString().padStart(2, '0')}${period}`;
-    };
-
-    return `${dayName}, ${dateStr} at ${formatHour(selectedBlock.startHour)} - ${formatHour(selectedBlock.endHour)}`;
+    return `${dayName}, ${dateStr} at ${formatTime(selectedBlock.startHour, use24HourTime)} - ${formatTime(selectedBlock.endHour, use24HourTime)}`;
   };
 
   return (

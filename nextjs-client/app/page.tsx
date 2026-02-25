@@ -11,7 +11,6 @@ type View = 'calendar' | 'availability' | 'scheduling' | 'settings';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<View>('calendar');
-  const [showAllHours, setShowAllHours] = useState(false);
 
   return (
     <div className="min-h-screen">
@@ -86,15 +85,10 @@ export default function Home() {
         </div>
 
         {/* Current View Content */}
-        {currentView === 'calendar' && <CalendarView showAllHours={showAllHours} />}
+        {currentView === 'calendar' && <CalendarView />}
         {currentView === 'availability' && <AvailabilityView />}
         {currentView === 'scheduling' && <ScheduleMeetingView />}
-        {currentView === 'settings' && (
-          <SettingsView
-            showAllHours={showAllHours}
-            onShowAllHoursChange={setShowAllHours}
-          />
-        )}
+        {currentView === 'settings' && <SettingsView />}
       </main>
     </div>
   );

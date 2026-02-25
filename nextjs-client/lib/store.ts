@@ -19,6 +19,8 @@ export const useSchedulerStore = create<SchedulerStore>()(
       isSavingAvailability: false,
       isCreatingMeeting: false,
       cancellingMeetingId: null,
+      // Settings
+      use24HourTime: false,
 
       // Fetch all data from API
       fetchData: async () => {
@@ -116,12 +118,17 @@ export const useSchedulerStore = create<SchedulerStore>()(
           set({ cancellingMeetingId: null });
         }
       },
+
+      setUse24HourTime: (value: boolean) => {
+        set({ use24HourTime: value });
+      },
     }),
     {
       name: 'scheduler-storage',
-      // Only persist currentUserId locally
+      // Persist user preferences locally
       partialize: (state) => ({
         currentUserId: state.currentUserId,
+        use24HourTime: state.use24HourTime,
       }),
     }
   )
